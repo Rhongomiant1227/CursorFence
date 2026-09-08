@@ -1,21 +1,34 @@
-# CursorFence · 光标围栏
+# CursorFence
+
+### 双屏用户的鼠标“防跑偏”神器
+
+按一下 `ScrollLock`，鼠标乖乖待在当前窗口或当前显示器；再按一下，马上放行。
 
 ![Windows](https://img.shields.io/badge/Windows-8.1%2B-0078D6?logo=windows)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-26b976)
 ![Release](https://img.shields.io/github/v/release/Rhongomiant1227/CursorFence?display_name=tag&sort=semver)
 
-**把鼠标留在该在的地方。**
+**鼠标总往隔壁屏幕跑？给它画条线。**
 
-CursorFence 是一个轻量、开源的 Windows 光标边界工具：按一次快捷键，把鼠标限制在当前窗口或当前显示器的可用工作区；再按一次立即解除。它面向窗口化游戏、远程桌面、多显示器办公、演示和录屏等场景，解决“鼠标一不小心滑到旁边屏幕”的小痛点。
+双屏办公、窗口化游戏、远程桌面、录屏时，鼠标总有一种“我偏要去隔壁屏”的自由。CursorFence 是一个轻量、开源、便携的 Windows 小工具：按一次快捷键，把鼠标留在当前窗口或当前显示器的工作区；再按一次，马上放行。
 
-> 这个项目不是第一个做“鼠标边界锁定”的工具。CursorFence 借鉴了 cursorlock 等同类工具的思路，重点解决它们在混合 DPI、多显示器、状态反馈、稳定性和发布体验上的常见痛点。
+> 这个需求并不新，cursorlock 等项目早就验证了它的价值。CursorFence 沿用这个思路，把混合 DPI、多显示器边界、状态反馈、快捷键稳定性和“下载后直接跑”这些细节一起处理。
 
 [English README](README.en.md) · [Issues](https://github.com/Rhongomiant1227/CursorFence/issues) · [Releases](https://github.com/Rhongomiant1227/CursorFence/releases)
 
 B 站视频制作方案：[`docs/VIDEO_BILIBILI.md`](docs/VIDEO_BILIBILI.md)
 
-## 亮点
+## 30 秒上手
+
+1. 从 [Releases](https://github.com/Rhongomiant1227/CursorFence/releases/latest) 下载 `CursorFence-windows-x64.zip`。
+2. 解压整个文件夹，运行 `CursorFence\CursorFence.exe`。
+3. 把鼠标放在目标窗口或显示器上，按 `ScrollLock`。
+4. 状态点变绿，鼠标就不会越过边界；再按一次解除。
+
+发布包不需要安装 Python。请保留完整目录，`_internal` 文件夹和 EXE 要放在一起。
+
+## 它能干什么
 
 | | 能做什么 |
 | --- | --- |
@@ -79,16 +92,16 @@ dist\CursorFence-windows-x64.zip
 
 GitHub Actions 会在 Windows Runner 上自动执行测试、构建和 ZIP 打包；推送版本标签（例如 `v0.1.0`）即可生成 Release 附件。
 
-## 为什么选择 ScrollLock？
+## 为什么偏偏是 ScrollLock？
 
-ScrollLock 在现代键盘上使用频率较低，却通常保留独立的键盘灯。它非常适合做“不会误触、又能一眼确认状态”的切换键。CursorFence 默认监听 ScrollLock，并提供可选的“让激活状态与 ScrollLock 指示灯保持一致”：
+因为它“平时没人按，但很多键盘还有灯”。ScrollLock 在现代键盘上使用频率较低，却通常保留独立的键盘灯：不容易误触，又能给你一个肉眼可见的状态提示。CursorFence 默认监听 ScrollLock，并提供可选的“让激活状态与 ScrollLock 指示灯保持一致”：
 
 - 灯亮：光标已锁定；
 - 灯灭：光标未锁定；
 - 不喜欢改变键盘灯时，可以关闭此选项；
 - CapsLock / NumLock 也支持相同逻辑，但会弹出提示，因为它们还有原本的系统功能。
 
-## 技术原理与安全边界
+## 原理和安全边界：它到底动了什么？
 
 CursorFence 只调用 Windows 原生 `ClipCursor` 设置系统光标可移动矩形：
 
@@ -102,7 +115,7 @@ CursorFence 只调用 Windows 原生 `ClipCursor` 设置系统光标可移动矩
 
 这不是对所有游戏反作弊策略的保证。竞技游戏或使用严格反作弊的游戏，建议启动游戏前退出 CursorFence；普通桌面、多屏办公、远程桌面和单机游戏场景更适合使用。
 
-## 兼容性、性能与故障恢复
+## 性能和兼容性
 
 - 当前发布包使用 Python 3.10 构建，建议 Windows 8.1/10/11 x64；通知接口在 Windows 7/8 使用经典通知区域气泡，在 Windows 10/11 可能显示为系统 Toast。
 - 支持任意常见显示器分辨率和排列：1080p、1440p、4K、超宽屏、竖屏、负坐标副屏，以及不同缩放比例的混合 DPI 桌面。最终边界由 Windows 当前显示器配置返回。
@@ -122,7 +135,7 @@ tests/                   # 核心单元测试
 .github/workflows/       # 自动测试、构建和 Release ZIP
 ```
 
-## 参与贡献
+## 开源说明
 
 欢迎提交 Issue 和 Pull Request。涉及 Win32 边界行为的改动，请至少在不同分辨率、不同 DPI 缩放或多显示器环境中手动验证。详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 

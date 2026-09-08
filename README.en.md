@@ -1,21 +1,34 @@
-# CursorFence · Keep Your Cursor Where It Belongs
+# CursorFence
+
+### Stop your cursor from going rogue across monitors
 
 ![Windows](https://img.shields.io/badge/Windows-8.1%2B-0078D6?logo=windows)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-26b976)
 ![Release](https://img.shields.io/github/v/release/Rhongomiant1227/CursorFence?display_name=tag&sort=semver)
 
-**Keep your cursor where it belongs.**
+**Your cursor keeps escaping to the other screen? Give it a boundary.**
 
-CursorFence is a small, open-source Windows utility that confines the cursor to the active window or to the usable work area of the current monitor. Press a hotkey to lock; press it again to release. It is useful for windowed games, remote desktops, presentations, recording, and multi-monitor workflows where the cursor tends to escape to another screen.
+CursorFence is a small, open-source, portable Windows utility for windowed games, remote desktops, presentations, recordings, and any multi-monitor workflow where one quick movement sends the cursor somewhere it should not be.
 
-CursorFence is not the first cursor-boundary tool. It follows the same general idea as projects such as cursorlock, while focusing on the practical pain points people often encounter: mixed-DPI desktops, different monitor layouts, reliable state feedback, stable hotkey handling, and a clean portable release.
+Press a hotkey to keep the cursor inside the current window or monitor work area. Press it again to release.
+
+The idea is not new. Projects such as cursorlock already show that people need it. CursorFence focuses on the details that make a tiny utility pleasant to use: mixed-DPI desktops, predictable monitor boundaries, visible state feedback, reliable hotkeys, and a release that simply runs after extraction.
 
 [中文版 README](README.md) · [Issues](https://github.com/Rhongomiant1227/CursorFence/issues) · [Releases](https://github.com/Rhongomiant1227/CursorFence/releases)
 
 Bilibili video production plan: [`docs/VIDEO_BILIBILI.md`](docs/VIDEO_BILIBILI.md)
 
-## What it does
+## Up and running in 30 seconds
+
+1. Download `CursorFence-windows-x64.zip` from [Releases](https://github.com/Rhongomiant1227/CursorFence/releases/latest).
+2. Extract the complete folder and run `CursorFence\CursorFence.exe`.
+3. Place the cursor over the target window or monitor and press `ScrollLock`.
+4. The status turns green. Press `ScrollLock` again to release.
+
+Python is not required for the release build. Keep the extracted folder intact; the EXE needs the `_internal` directory beside it.
+
+## What it is good for
 
 | | Feature |
 | --- | --- |
@@ -80,7 +93,7 @@ The GitHub Actions workflow runs tests, creates the Windows onedir build, and up
 
 ## Why ScrollLock?
 
-ScrollLock is uncommon on modern keyboards, but it often still has a dedicated indicator LED. That makes it a useful “hard to press by accident, easy to see” toggle. CursorFence listens to ScrollLock by default and optionally lets the LED mirror the lock state:
+ScrollLock is rarely used, but many keyboards still have a dedicated indicator LED. That makes it difficult to trigger accidentally and easy to read at a glance. CursorFence listens to ScrollLock by default and optionally lets the LED mirror the lock state:
 
 - LED on: cursor locked;
 - LED off: cursor released;
