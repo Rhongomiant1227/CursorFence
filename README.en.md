@@ -13,6 +13,8 @@ CursorFence is not the first cursor-boundary tool. It follows the same general i
 
 [中文版 README](README.md) · [Issues](https://github.com/Rhongomiant1227/CursorFence/issues) · [Releases](https://github.com/Rhongomiant1227/CursorFence/releases)
 
+Bilibili video production plan: [`docs/VIDEO_BILIBILI.md`](docs/VIDEO_BILIBILI.md)
+
 ## What it does
 
 | | Feature |

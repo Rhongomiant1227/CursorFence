@@ -13,6 +13,8 @@ CursorFence 是一个轻量、开源的 Windows 光标边界工具：按一次�
 
 [English README](README.en.md) · [Issues](https://github.com/Rhongomiant1227/CursorFence/issues) · [Releases](https://github.com/Rhongomiant1227/CursorFence/releases)
 
+B 站视频制作方案：[`docs/VIDEO_BILIBILI.md`](docs/VIDEO_BILIBILI.md)
+
 ## 亮点
 
 | | 能做什么 |
