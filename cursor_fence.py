@@ -483,18 +483,31 @@ class TrayController:
             write_error_log("创建通知区域图标失败", sys.exc_info())
 
     def make_image(self, active: bool):
-        """Draw a strong full-color state icon that remains clear at 16 px."""
-        background = "#26b976" if active else "#50617d"
-        edge = "#148150" if active else "#303c52"
-        image = self.Image.new("RGBA", (64, 64), background)
+        """Draw the branded fence-and-cursor mark for the notification area.
+
+        The active variant keeps the same silhouette but shifts the tile and
+        fence hues, making state changes obvious even at the tiny 16px shell
+        rendering without swapping to an unrelated glyph.
+        """
+        background = "#102a35" if active else "#101a2e"
+        rim = "#2d8c79" if active else "#263a5c"
+        inner = "#174451" if active else "#172944"
+        fence = "#66f2a5" if active else "#41e6d2"
+        post = "#32b88e" if active else "#1aa7b4"
+        cursor = "#ffd166" if active else "#ffb454"
+        cursor_edge = "#fff0b3" if active else "#ffe2a6"
+        image = self.Image.new("RGBA", (64, 64), (0, 0, 0, 0))
         draw = self.ImageDraw.Draw(image)
-        draw.rounded_rectangle((3, 3, 60, 60), radius=14, fill=background, outline=edge, width=3)
-        if active:
-            draw.rounded_rectangle((17, 27, 47, 50), radius=5, fill="#f4fffa")
-            draw.arc((21, 14, 43, 38), 180, 360, fill="#f4fffa", width=5)
-            draw.line((25, 39, 31, 45, 40, 34), fill="#148150", width=4, joint="curve")
-        else:
-            draw.polygon(((22, 13), (22, 46), (30, 37), (37, 51), (44, 47), (36, 33), (50, 33)), fill="#f4f7fb")
+        draw.rounded_rectangle((3, 3, 60, 60), radius=15, fill=background, outline=rim, width=2)
+        draw.rounded_rectangle((7, 7, 56, 56), radius=12, outline=inner, width=1)
+        draw.line((17, 16, 17, 49), fill=post, width=4)
+        draw.line((47, 16, 47, 49), fill=post, width=4)
+        draw.line((16, 25, 48, 25), fill=fence, width=3)
+        draw.line((16, 39, 48, 39), fill=fence, width=3)
+        draw.ellipse((14, 13, 20, 19), fill="#a6fff0" if not active else "#d4ffe4")
+        draw.ellipse((44, 13, 50, 19), fill="#a6fff0" if not active else "#d4ffe4")
+        draw.polygon(((26, 14), (26, 45), (33, 37), (39, 50), (45, 47), (38, 34), (49, 34)), fill=cursor, outline=cursor_edge)
+        draw.line((29, 21, 29, 36), fill="#fff0b3" if active else "#ffd37a", width=2)
         return image
 
     def make_menu(self):

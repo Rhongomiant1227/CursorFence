@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- Reworked the application and notification-area icon into a distinctive fence-and-cursor mark.
+- Added an active-state color variant so the lock state is easier to recognize at a glance.
+- Updated the portable executable and installer assets to use the new icon.
+
 ## 0.2.0
 
 - 新增 `CursorFence-Portable.exe` 单文件便携版及 ZIP 发布包。

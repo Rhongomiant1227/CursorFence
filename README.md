@@ -2,6 +2,8 @@
 
 ### 双屏用户的鼠标“防跑偏”神器
 
+<p align="center"><img src="resources/CursorFence.png" alt="CursorFence icon" width="128"></p>
+
 按一下 `ScrollLock`，鼠标乖乖待在当前窗口或当前显示器；再按一下，马上放行。
 
 ![Windows](https://img.shields.io/badge/Windows-8.1%2B-0078D6?logo=windows)
@@ -92,7 +94,7 @@ dist\CursorFence-Portable-windows-x64.zip
 dist\CursorFence-Installer.exe
 ```
 
-如果本机安装了 Inno Setup 6，脚本还会自动生成安装包；没有安装时仍会完成便携版构建。GitHub Actions 会自动准备 Inno Setup，推送版本标签（例如 `v0.2.0`）即可生成 Release 附件。
+如果本机安装了 Inno Setup 6，脚本还会自动生成安装包；没有安装时仍会完成便携版构建。GitHub Actions 会自动准备 Inno Setup，推送版本标签（例如 `v0.2.1`）即可生成 Release 附件。
 
 ## 为什么偏偏是 ScrollLock？
 

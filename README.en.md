@@ -2,6 +2,8 @@
 
 ### Stop your cursor from going rogue across monitors
 
+<p align="center"><img src="resources/CursorFence.png" alt="CursorFence icon" width="128"></p>
+
 ![Windows](https://img.shields.io/badge/Windows-8.1%2B-0078D6?logo=windows)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-26b976)
@@ -91,7 +93,7 @@ dist\CursorFence-Portable-windows-x64.zip
 dist\CursorFence-Installer.exe
 ```
 
-When Inno Setup 6 is installed locally, the script also creates the installer; the portable build still completes without it. GitHub Actions prepares Inno Setup automatically. Push a version tag such as `v0.2.0` to create a release with both assets.
+When Inno Setup 6 is installed locally, the script also creates the installer; the portable build still completes without it. GitHub Actions prepares Inno Setup automatically. Push a version tag such as `v0.2.1` to create a release with both assets.
 
 ## Why ScrollLock?
 

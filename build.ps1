@@ -23,7 +23,7 @@ if (-not $SkipSetup -or -not (Test-Path -LiteralPath $pythonPath)) {
 
 New-Item -ItemType Directory -Force -Path $buildRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $distPath | Out-Null
-& $pythonPath (Join-Path $projectRoot "tools\create_icon.py") --output $iconPath
+& $pythonPath (Join-Path $projectRoot "tools\create_icon.py") --output $iconPath --preview (Join-Path $projectRoot "resources\CursorFence.png")
 
 # Directory mode avoids unpacking a large archive on every launch and lets
 # Windows/antivirus tools inspect the bundled DLLs normally. Remove only the
@@ -100,7 +100,7 @@ if ($null -ne $isccCommand) {
     }
 }
 if ($isccPath) {
-    & $isccPath "/DMyAppVersion=0.2.0" $issPath
+    & $isccPath "/DMyAppVersion=0.2.1" $issPath
     if ($LASTEXITCODE -ne 0) {
         throw "安装包打包失败（退出码：$LASTEXITCODE）。"
     }

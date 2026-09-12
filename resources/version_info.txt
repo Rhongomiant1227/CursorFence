@@ -16,11 +16,11 @@ VSVersionInfo(
         u'040904B0',
         [StringStruct(u'CompanyName', u'CursorFence contributors'),
          StringStruct(u'FileDescription', u'Keyboard-controlled cursor boundary lock'),
-         StringStruct(u'FileVersion', u'0.2.0'),
+         StringStruct(u'FileVersion', u'0.2.1'),
          StringStruct(u'InternalName', u'CursorFence'),
          StringStruct(u'OriginalFilename', u'CursorFence.exe'),
          StringStruct(u'ProductName', u'CursorFence'),
-         StringStruct(u'ProductVersion', u'0.2.0')])
+         StringStruct(u'ProductVersion', u'0.2.1')])
     ]),
     VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
   ]
