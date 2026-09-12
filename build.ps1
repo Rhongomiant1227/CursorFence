@@ -100,7 +100,7 @@ if ($null -ne $isccCommand) {
     }
 }
 if ($isccPath) {
-    & $isccPath "/DMyAppVersion=0.2.1" $issPath
+    & $isccPath "/DMyAppVersion=0.2.2" $issPath
     if ($LASTEXITCODE -ne 0) {
         throw "安装包打包失败（退出码：$LASTEXITCODE）。"
     }

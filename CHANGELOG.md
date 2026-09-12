@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2
+
+- Reworked the brand mark into a neon cyber-anime barrier and cursor design.
+- Added cyan/magenta energy arcs, sparkle nodes, and a high-contrast cursor silhouette.
+- Updated the application, installer, tray, and README preview assets.
+
 ## 0.2.1
 
 - Reworked the application and notification-area icon into a distinctive fence-and-cursor mark.

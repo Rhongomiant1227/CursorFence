@@ -9,10 +9,11 @@ from PIL import Image, ImageDraw
 
 
 def draw_icon(size: int) -> Image.Image:
-    """Render the CursorFence mark at high resolution for crisp ICO layers.
+    """Render the neon barrier-and-cursor mark used by CursorFence.
 
-    The cyan fence communicates the boundary while the warm cursor provides a
-    distinctive focal point that remains readable in a 16px notification icon.
+    It intentionally leans into a compact cyber-anime look: a violet tile,
+    cyan/magenta energy ring, and a bright cursor cutting through the barrier.
+    The silhouette is kept simple so it still reads in a 16px tray slot.
     """
     scale = size / 64
     image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
@@ -20,27 +21,29 @@ def draw_icon(size: int) -> Image.Image:
     box = lambda values: tuple(round(value * scale) for value in values)
     stroke = lambda value: max(1, round(value * scale))
 
-    # Deep navy tile with a subtle double rim; transparent corners work well
-    # against both the taskbar and the desktop.
-    draw.rounded_rectangle(box((3, 3, 60, 60)), radius=round(15 * scale), fill="#101a2e", outline="#263a5c", width=stroke(2))
-    draw.rounded_rectangle(box((7, 7, 56, 56)), radius=round(12 * scale), outline="#172944", width=stroke(1))
+    # Dark violet tile with a soft magenta lower rim.
+    draw.rounded_rectangle(box((3, 3, 60, 60)), radius=round(15 * scale), fill="#130d2d", outline="#5d2b83", width=stroke(2))
+    draw.rounded_rectangle(box((7, 7, 56, 56)), radius=round(12 * scale), outline="#281c57", width=stroke(1))
 
-    # Stylised fence: two posts and a bright central rail.
-    cyan = "#41e6d2"
-    cyan_dark = "#1aa7b4"
-    draw.line((box((17, 16))[0], box((17, 16))[1], box((17, 49))[0], box((17, 49))[1]), fill=cyan_dark, width=stroke(4))
-    draw.line((box((47, 16))[0], box((47, 16))[1], box((47, 49))[0], box((47, 49))[1]), fill=cyan_dark, width=stroke(4))
-    draw.line((box((16, 25))[0], box((16, 25))[1], box((48, 25))[0], box((48, 25))[1]), fill=cyan, width=stroke(3))
-    draw.line((box((16, 39))[0], box((16, 39))[1], box((48, 39))[0], box((48, 39))[1]), fill=cyan, width=stroke(3))
-    draw.ellipse(box((14, 13, 20, 19)), fill="#77fff0")
-    draw.ellipse(box((44, 13, 50, 19)), fill="#77fff0")
+    # Segmented energy ring: cyan on the left, pink on the right.  The gaps
+    # make it feel like a game HUD / magical seal rather than a plain border.
+    draw.arc(box((10, 10, 54, 54)), 198, 338, fill="#64f6ff", width=stroke(3))
+    draw.arc(box((10, 10, 54, 54)), 18, 158, fill="#ff5ccf", width=stroke(3))
+    draw.arc(box((13, 13, 51, 51)), 205, 315, fill="#30bff4", width=stroke(1))
+    draw.arc(box((13, 13, 51, 51)), 25, 135, fill="#b45cff", width=stroke(1))
 
-    # Cursor crossing the fence, with a warm accent that doubles as the
-    # active-state cue.
-    orange = "#ffb454"
-    orange_hot = "#ffd37a"
-    draw.polygon([box((26, 14)), box((26, 45)), box((33, 37)), box((39, 50)), box((45, 47)), box((38, 34)), box((49, 34))], fill=orange, outline="#ffe2a6")
-    draw.line((box((29, 21))[0], box((29, 21))[1], box((29, 36))[0], box((29, 36))[1]), fill=orange_hot, width=stroke(2))
+    # Four tiny sparkle nodes give the mark a more anime/cyber feel while
+    # remaining bold enough to survive icon downsampling.
+    for cx, cy, color in ((15, 17, "#a4fbff"), (49, 17, "#ffb2ed"), (14, 48, "#64f6ff"), (50, 47, "#ff5ccf")):
+        draw.polygon((box((cx, cy - 3)), box((cx + 2, cy)), box((cx, cy + 3)), box((cx - 2, cy))), fill=color)
+
+    # Central cursor pierces the energy seal.  A dark offset outline keeps it
+    # legible against both neon colors at small sizes.
+    cursor = [box((25, 14)), box((25, 45)), box((32, 37)), box((39, 50)), box((45, 47)), box((38, 34)), box((49, 34))]
+    shadow = [(x + round(2 * scale), y + round(2 * scale)) for x, y in cursor]
+    draw.polygon(shadow, fill="#090617")
+    draw.polygon(cursor, fill="#fff8ff", outline="#ff72d2")
+    draw.line((box((28, 20))[0], box((28, 20))[1], box((28, 36))[0], box((28, 36))[1]), fill="#d9b5ff", width=stroke(2))
     return image
 
 

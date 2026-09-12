@@ -93,7 +93,7 @@ dist\CursorFence-Portable-windows-x64.zip
 dist\CursorFence-Installer.exe
 ```
 
-When Inno Setup 6 is installed locally, the script also creates the installer; the portable build still completes without it. GitHub Actions prepares Inno Setup automatically. Push a version tag such as `v0.2.1` to create a release with both assets.
+When Inno Setup 6 is installed locally, the script also creates the installer; the portable build still completes without it. GitHub Actions prepares Inno Setup automatically. Push a version tag such as `v0.2.2` to create a release with both assets.
 
 ## Why ScrollLock?
 

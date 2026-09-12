@@ -483,31 +483,27 @@ class TrayController:
             write_error_log("创建通知区域图标失败", sys.exc_info())
 
     def make_image(self, active: bool):
-        """Draw the branded fence-and-cursor mark for the notification area.
-
-        The active variant keeps the same silhouette but shifts the tile and
-        fence hues, making state changes obvious even at the tiny 16px shell
-        rendering without swapping to an unrelated glyph.
-        """
-        background = "#102a35" if active else "#101a2e"
-        rim = "#2d8c79" if active else "#263a5c"
-        inner = "#174451" if active else "#172944"
-        fence = "#66f2a5" if active else "#41e6d2"
-        post = "#32b88e" if active else "#1aa7b4"
-        cursor = "#ffd166" if active else "#ffb454"
-        cursor_edge = "#fff0b3" if active else "#ffe2a6"
+        """Draw the neon barrier-and-cursor mark in the notification area."""
+        background = "#191033" if active else "#130d2d"
+        rim = "#b84f9b" if active else "#5d2b83"
+        inner = "#39205e" if active else "#281c57"
+        cyan = "#8cfff4" if active else "#64f6ff"
+        pink = "#ffb0e9" if active else "#ff5ccf"
         image = self.Image.new("RGBA", (64, 64), (0, 0, 0, 0))
         draw = self.ImageDraw.Draw(image)
         draw.rounded_rectangle((3, 3, 60, 60), radius=15, fill=background, outline=rim, width=2)
         draw.rounded_rectangle((7, 7, 56, 56), radius=12, outline=inner, width=1)
-        draw.line((17, 16, 17, 49), fill=post, width=4)
-        draw.line((47, 16, 47, 49), fill=post, width=4)
-        draw.line((16, 25, 48, 25), fill=fence, width=3)
-        draw.line((16, 39, 48, 39), fill=fence, width=3)
-        draw.ellipse((14, 13, 20, 19), fill="#a6fff0" if not active else "#d4ffe4")
-        draw.ellipse((44, 13, 50, 19), fill="#a6fff0" if not active else "#d4ffe4")
-        draw.polygon(((26, 14), (26, 45), (33, 37), (39, 50), (45, 47), (38, 34), (49, 34)), fill=cursor, outline=cursor_edge)
-        draw.line((29, 21, 29, 36), fill="#fff0b3" if active else "#ffd37a", width=2)
+        draw.arc((10, 10, 54, 54), 198, 338, fill=cyan, width=3)
+        draw.arc((10, 10, 54, 54), 18, 158, fill=pink, width=3)
+        draw.arc((13, 13, 51, 51), 205, 315, fill="#58d9ff", width=1)
+        draw.arc((13, 13, 51, 51), 25, 135, fill="#ce7aff", width=1)
+        for cx, cy, color in ((15, 17, "#d5ffff"), (49, 17, "#ffd2f2"), (14, 48, cyan), (50, 47, pink)):
+            draw.polygon(((cx, cy - 3), (cx + 2, cy), (cx, cy + 3), (cx - 2, cy)), fill=color)
+        cursor = ((25, 14), (25, 45), (32, 37), (39, 50), (45, 47), (38, 34), (49, 34))
+        shadow = tuple((x + 2, y + 2) for x, y in cursor)
+        draw.polygon(shadow, fill="#090617")
+        draw.polygon(cursor, fill="#fff8ff", outline="#ff72d2")
+        draw.line((28, 20, 28, 36), fill="#e5c9ff", width=2)
         return image
 
     def make_menu(self):
