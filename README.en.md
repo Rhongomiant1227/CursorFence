@@ -21,12 +21,12 @@ Bilibili video production plan: [`docs/VIDEO_BILIBILI.md`](docs/VIDEO_BILIBILI.m
 
 ## Up and running in 30 seconds
 
-1. Download `CursorFence-windows-x64.zip` from [Releases](https://github.com/Rhongomiant1227/CursorFence/releases/latest).
-2. Extract the complete folder and run `CursorFence\CursorFence.exe`.
+1. Download `CursorFence-Portable-windows-x64.zip` or `CursorFence-Installer.exe` from [Releases](https://github.com/Rhongomiant1227/CursorFence/releases/latest).
+2. For a portable run, extract the ZIP and launch `CursorFence-Portable.exe`. For a normal install, run the installer and launch CursorFence from the Start menu.
 3. Place the cursor over the target window or monitor and press `ScrollLock`.
 4. The status turns green. Press `ScrollLock` again to release.
 
-Python is not required for the release build. Keep the extracted folder intact; the EXE needs the `_internal` directory beside it.
+Python is not required. The single-file portable build is useful on a USB drive or temporary machine; the installer registers a normal per-user installation in Windows' installed-apps list.
 
 ## What it is good for
 
@@ -42,13 +42,13 @@ Python is not required for the release build. Keep the extracted folder intact; 
 
 ## Download
 
-Open [Releases](https://github.com/Rhongomiant1227/CursorFence/releases), download `CursorFence-windows-x64.zip`, extract the complete folder, and run:
+Open [Releases](https://github.com/Rhongomiant1227/CursorFence/releases), download the portable ZIP or installer. The portable ZIP contains a single EXE:
 
 ```text
-CursorFence\CursorFence.exe
+CursorFence-Portable.exe
 ```
 
-Keep the folder intact; do not copy only the EXE. Releases use PyInstaller **onedir** packaging, so the application does not unpack a large temporary archive every time it starts. This makes startup more predictable and gives security software normal files to inspect. Python is not required for the release build.
+The installer places the onedir build in the current user's programs directory and adds a normal Start menu shortcut and uninstall entry. The onedir layout keeps installed startup predictable and gives security software normal files to inspect.
 
 ### First run
 
@@ -86,10 +86,12 @@ The script creates both the onedir folder and a ready-to-upload ZIP:
 
 ```text
 dist\CursorFence\CursorFence.exe
-dist\CursorFence-windows-x64.zip
+dist\CursorFence-Portable.exe
+dist\CursorFence-Portable-windows-x64.zip
+dist\CursorFence-Installer.exe
 ```
 
-The GitHub Actions workflow runs tests, creates the Windows onedir build, and uploads the ZIP as an artifact/release asset. Push a version tag such as `v0.1.0` to create a release asset.
+When Inno Setup 6 is installed locally, the script also creates the installer; the portable build still completes without it. GitHub Actions prepares Inno Setup automatically. Push a version tag such as `v0.2.0` to create a release with both assets.
 
 ## Why ScrollLock?
 
@@ -118,7 +120,8 @@ This is not a guarantee about every game's anti-cheat policy. For competitive ga
 
 - The current release is built with Python 3.10 and is intended for Windows 8.1/10/11 x64. The notification API uses classic tray balloons on older Windows and may appear as a toast on Windows 10/11.
 - Common monitor configurations are supported: 1080p, 1440p, 4K, ultrawide, portrait displays, negative-coordinate layouts, and mixed scaling factors. The actual rectangle always comes from the current Windows monitor configuration.
-- Hotkeys are sampled about every 8 ms. The boundary watchdog runs about every 40 ms and only while locked. There is no permanent high-frequency mouse hook, service, or driver.
+- Hotkeys are sampled about every 8 ms. While locked, an independent boundary guard rechecks the native clip at roughly 2 ms intervals; moving-window geometry is refreshed about every 40 ms. There is no permanent high-frequency mouse hook, service, or driver.
+- Some high-FPS games rewrite their own `ClipCursor` range every frame. The guard greatly shortens the escape window, but Windows scheduling and simultaneous writes still leave a tiny race, so absolute interception cannot be promised. Prefer the game's borderless-window or built-in cursor-lock option when available.
 - Notification failures, disabled notification areas, closed/minimized target windows, and third-party clip releases are handled as recoverable conditions. Details are written to `%LOCALAPPDATA%\CursorFence\logs\error.log`.
 - If security software flags the portable build, inspect the complete release folder as one application. Do not delete DLLs from `_internal`.
 
@@ -131,6 +134,7 @@ build.ps1                # PyInstaller onedir build
 tools/create_icon.py     # icon generator
 resources/               # icon and version metadata
 tests/                   # core unit tests
+installer/               # Inno Setup installer script
 .github/workflows/       # CI build and release ZIP
 ```
 

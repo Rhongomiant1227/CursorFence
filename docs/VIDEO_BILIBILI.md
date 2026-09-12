@@ -126,11 +126,11 @@
 
 ### 3:35–4:05：开源与下载
 
-画面：真实打开 GitHub 仓库，展示 README 中英文入口、Releases 页面和 `CursorFence-windows-x64.zip`。下载后解压完整目录，双击 `CursorFence.exe`。不要只展示 EXE，顺带强调需要保留 `_internal` 文件夹。
+画面：真实打开 GitHub 仓库，展示 README 中英文入口、Releases 页面和 `CursorFence-Portable-windows-x64.zip`、`CursorFence-Installer.exe`。便携版解压后运行 `CursorFence-Portable.exe`；安装版按向导安装后从开始菜单启动。
 
 旁白：
 
-> 项目已经开源在 GitHub，Windows 用户不需要安装 Python。到 Releases 下载 `CursorFence-windows-x64.zip`，解压后保留整个文件夹，直接运行里面的 `CursorFence.exe`。这是目录型发布包，启动时不需要反复解压大型临时文件，程序也更容易被安全软件检查。
+> 项目已经开源在 GitHub，Windows 用户不需要安装 Python。到 Releases 下载便携 ZIP 或 `CursorFence-Installer.exe`。便携版是单文件，安装版会注册到 Windows 的已安装应用列表，并使用目录型程序保持稳定启动。
 
 字幕：
 
@@ -261,4 +261,3 @@
 - AI 生成素材没有承担功能证明，也没有出现虚构 UI；
 - 字幕在手机端观看时仍然可读；
 - 片尾保留项目名 `CursorFence` 和仓库地址至少 3 秒。
-

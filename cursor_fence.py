@@ -174,7 +174,13 @@ LOCK_KEY_INFO = {
     0x90: ("NumLock", "Num Lock"),
 }
 HOTKEY_POLL_MS = 8
-CURSOR_WATCH_MS = 40
+# The UI refreshes a moving window boundary at a human-scale interval.  A
+# separate native-API watchdog reapplies the last accepted rectangle much
+# faster while a lock is active.  Some high-FPS games periodically call
+# ClipCursor themselves; keeping this interval short closes most of the race
+# in which the cursor could otherwise reach a neighbouring monitor.
+BOUNDARY_REFRESH_MS = 40
+CURSOR_REAPPLY_MS = 2
 NOTIFICATION_DISPLAY_MS = 2600
 
 
@@ -673,6 +679,74 @@ class HotkeyWorker:
             write_error_log("全局快捷键线程异常", sys.exc_info())
 
 
+class CursorBoundaryGuard:
+    """Reapply the active ClipCursor rectangle outside the Tk event loop.
+
+    Some high-FPS games briefly replace or release the process-wide cursor
+    clip while processing a frame.  A 40 ms ``after`` callback leaves enough
+    time for a fast pointer movement and click to escape.  This guard only
+    runs while a lock is active, checks the native rectangle every few
+    milliseconds, and reapplies the cached boundary when another process has
+    changed it.  It never moves the pointer, injects input, or installs a
+    mouse hook.  Windows scheduling and a game that writes the clip at the
+    same instant can still win a small race, so this is best-effort by design.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._boundary: tuple[int, int, int, int] | None = None
+        self._active = False
+        self._stop_event = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        if self._thread and self._thread.is_alive():
+            return
+        self._stop_event.clear()
+        self._thread = threading.Thread(target=self._run, name="cursor-boundary-guard", daemon=True)
+        self._thread.start()
+
+    def set_boundary(self, boundary: tuple[int, int, int, int]) -> bool:
+        """Publish and immediately apply a new boundary atomically."""
+        with self._lock:
+            self._boundary = boundary
+            self._active = True
+            left, top, right, bottom = boundary
+            return set_cursor_clip(RECT(left, top, right, bottom))
+
+    def clear(self) -> None:
+        """Stop reapplication and release the native clip without a race."""
+        with self._lock:
+            self._active = False
+            self._boundary = None
+            set_cursor_clip(None)
+
+    def stop(self) -> None:
+        self._stop_event.set()
+        thread = self._thread
+        if thread and thread.is_alive() and thread is not threading.current_thread():
+            thread.join(timeout=0.5)
+        self._thread = None
+        self.clear()
+
+    def _run(self) -> None:
+        try:
+            while not self._stop_event.wait(CURSOR_REAPPLY_MS / 1000.0):
+                # Holding the lock across the native call prevents a stale
+                # worker call from happening after ``clear`` has released the
+                # system clip during deactivation.
+                with self._lock:
+                    if not self._active or self._boundary is None:
+                        continue
+                    boundary = self._boundary
+                    if get_cursor_clip() == boundary:
+                        continue
+                    left, top, right, bottom = boundary
+                    set_cursor_clip(RECT(left, top, right, bottom))
+        except BaseException:
+            write_error_log("光标边界看门狗线程异常", sys.exc_info())
+
+
 class CursorFenceApp:
     """Application state and native cursor-boundary operations."""
 
@@ -694,6 +768,7 @@ class CursorFenceApp:
         # Re-reading the monitor from the cursor on every watchdog tick can
         # select a different display after the cursor reaches an edge.
         self.screen_boundary: tuple[int, int, int, int] | None = None
+        self.boundary_guard = CursorBoundaryGuard()
         self.hotkey_events: queue.Queue = queue.Queue()
         self.hotkey_worker = HotkeyWorker(lambda: self.config.get("hotkey", {}), self.hotkey_events)
         self.hotkey_poll_after_id: str | None = None
@@ -738,6 +813,7 @@ class CursorFenceApp:
     def start_services(self) -> None:
         self.tray.start()
         self.install_hotkey()
+        self.boundary_guard.start()
         self.tray.refresh(False)
         self.hotkey_poll_after_id = self.root.after(20, self.poll_hotkey_events)
         if self.indicator_sync_supported() and self.sync_indicator_var.get():
@@ -1201,6 +1277,8 @@ class CursorFenceApp:
                 return
         if self.apply_current_boundary(force=True):
             self.active = True
+            if self.last_rect is not None:
+                self.boundary_guard.set_boundary(self.last_rect)
             mode_text = "当前窗口" if self.mode_var.get() == "window" else "当前显示器"
             self.status_var.set("已锁定")
             self.detail_var.set(f"范围：{mode_text} · 再按 {self.hotkey_var.get()} 解除")
@@ -1214,7 +1292,7 @@ class CursorFenceApp:
             self.save_config()
 
     def deactivate_lock(self, from_indicator: bool = False) -> None:
-        set_cursor_clip(None)
+        self.boundary_guard.clear()
         self.active = False
         self.target_hwnd = None
         self.last_rect = None
@@ -1285,6 +1363,8 @@ class CursorFenceApp:
                 write_error_log(f"ClipCursor 设置失败，目标边界={boundary}")
                 return False
             self.last_rect = boundary
+            if self.active:
+                self.boundary_guard.set_boundary(boundary)
         return True
 
     def watch_lock(self) -> None:
@@ -1296,7 +1376,7 @@ class CursorFenceApp:
                 self.last_external_foreground = foreground
         if self.active:
             self.apply_current_boundary()
-        self.root.after(CURSOR_WATCH_MS, self.watch_lock)
+        self.root.after(BOUNDARY_REFRESH_MS, self.watch_lock)
 
     def refresh_detail(self) -> None:
         if not self.active and self.status_message:
@@ -1310,7 +1390,7 @@ class CursorFenceApp:
             self.cancel_recording()
         # Always release the system-wide cursor boundary even if application
         # state was interrupted before `active` was updated.
-        set_cursor_clip(None)
+        self.boundary_guard.stop()
         self.active = False
         self.screen_boundary = None
         if self.indicator_sync_supported() and self.sync_indicator_var.get():

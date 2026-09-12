@@ -27,6 +27,9 @@ jobs:
       - name: Run tests
         shell: pwsh
         run: .\.venv\Scripts\python.exe -m unittest discover -s tests -v
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
       - name: Build EXE
         shell: pwsh
         run: .\build.ps1 -SkipSetup
@@ -34,9 +37,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: CursorFence-windows-x64
-          path: dist/CursorFence-windows-x64.zip
+          path: |
+            dist/CursorFence-Portable-windows-x64.zip
+            dist/CursorFence-Installer.exe
       - name: Create GitHub release asset
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/CursorFence-windows-x64.zip
+          files: |
+            dist/CursorFence-Portable-windows-x64.zip
+            dist/CursorFence-Installer.exe

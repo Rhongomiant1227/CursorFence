@@ -21,12 +21,12 @@ B 站视频制作方案：[`docs/VIDEO_BILIBILI.md`](docs/VIDEO_BILIBILI.md)
 
 ## 30 秒上手
 
-1. 从 [Releases](https://github.com/Rhongomiant1227/CursorFence/releases/latest) 下载 `CursorFence-windows-x64.zip`。
-2. 解压整个文件夹，运行 `CursorFence\CursorFence.exe`。
+1. 从 [Releases](https://github.com/Rhongomiant1227/CursorFence/releases/latest) 下载 `CursorFence-Portable-windows-x64.zip` 或 `CursorFence-Installer.exe`。
+2. 想解压即用：解压便携 ZIP，运行 `CursorFence-Portable.exe`。想正常安装：运行安装包，按向导安装后从开始菜单启动。
 3. 把鼠标放在目标窗口或显示器上，按 `ScrollLock`。
 4. 状态点变绿，鼠标就不会越过边界；再按一次解除。
 
-发布包不需要安装 Python。请保留完整目录，`_internal` 文件夹和 EXE 要放在一起。
+发布包不需要安装 Python。便携单文件适合放 U 盘或临时使用；安装包会把目录型程序安装到当前用户，并注册到 Windows“已安装的应用”。
 
 ## 它能干什么
 
@@ -43,13 +43,13 @@ B 站视频制作方案：[`docs/VIDEO_BILIBILI.md`](docs/VIDEO_BILIBILI.md)
 
 ## 下载与运行
 
-打开 [Releases](https://github.com/Rhongomiant1227/CursorFence/releases)，下载类似 `CursorFence-windows-x64.zip` 的发布包，解压后运行：
+打开 [Releases](https://github.com/Rhongomiant1227/CursorFence/releases)，下载便携 ZIP 或安装包。便携 ZIP 解压后可直接运行单文件 EXE：
 
 ```text
-CursorFence\CursorFence.exe
+CursorFence-Portable.exe
 ```
 
-请保留整个目录，不要只复制其中的 EXE。发布包采用 PyInstaller **目录型（onedir）** 模式：启动时不需要解压大型临时文件，启动更稳定，也更容易被安全软件检查。程序不需要安装 Python。
+如果选择安装包，安装完成后可以从开始菜单或 Windows“已安装的应用”启动、卸载 CursorFence。目录型程序仍用于安装版内部，启动更稳定，也更容易被安全软件检查。
 
 ### 第一次使用
 
@@ -87,10 +87,12 @@ Set-Location <仓库目录>
 
 ```text
 dist\CursorFence\CursorFence.exe
-dist\CursorFence-windows-x64.zip
+dist\CursorFence-Portable.exe
+dist\CursorFence-Portable-windows-x64.zip
+dist\CursorFence-Installer.exe
 ```
 
-GitHub Actions 会在 Windows Runner 上自动执行测试、构建和 ZIP 打包；推送版本标签（例如 `v0.1.0`）即可生成 Release 附件。
+如果本机安装了 Inno Setup 6，脚本还会自动生成安装包；没有安装时仍会完成便携版构建。GitHub Actions 会自动准备 Inno Setup，推送版本标签（例如 `v0.2.0`）即可生成 Release 附件。
 
 ## 为什么偏偏是 ScrollLock？
 
@@ -119,7 +121,8 @@ CursorFence 只调用 Windows 原生 `ClipCursor` 设置系统光标可移动矩
 
 - 当前发布包使用 Python 3.10 构建，建议 Windows 8.1/10/11 x64；通知接口在 Windows 7/8 使用经典通知区域气泡，在 Windows 10/11 可能显示为系统 Toast。
 - 支持任意常见显示器分辨率和排列：1080p、1440p、4K、超宽屏、竖屏、负坐标副屏，以及不同缩放比例的混合 DPI 桌面。最终边界由 Windows 当前显示器配置返回。
-- 快捷键检查约每 8 ms 一次；锁定看门狗约每 40 ms 一次，且只在锁定时工作。没有常驻高频鼠标 Hook、后台服务或驱动。
+- 快捷键检查约每 8 ms 一次；锁定时会有独立的边界看门狗以约 2 ms 间隔重新确认系统边界，窗口位置刷新约每 40 ms 一次。没有常驻高频鼠标 Hook、后台服务或驱动。
+- 某些高帧率游戏会在每帧重写自己的 `ClipCursor` 范围；看门狗可以显著缩短越界窗口，但 Windows 调度和游戏同时写入时仍可能存在极短竞态，无法承诺绝对拦截。优先使用游戏的无边框窗口模式或游戏内鼠标锁定选项。
 - 通知失败、通知区域被禁用、窗口关闭/最小化、第三方程序释放边界等情况都会安全降级；异常记录在 `%LOCALAPPDATA%\CursorFence\logs\error.log`。
 - 如果安全软件提示风险，请将整个发布目录作为一个程序检查。不要删除 `_internal` 中的 DLL。
 
@@ -132,6 +135,7 @@ build.ps1                # PyInstaller 目录型打包
 tools/create_icon.py     # 生成应用图标
 resources/               # 图标与版本信息
 tests/                   # 核心单元测试
+installer/               # Inno Setup 安装包脚本
 .github/workflows/       # 自动测试、构建和 Release ZIP
 ```
 
