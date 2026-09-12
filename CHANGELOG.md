@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- Added automatic system-language detection for Chinese and English UI text, with English fallback for other Windows display languages.
+- Replaced the legacy JSON settings file with an editable UTF-8 `CursorFence.ini` (legacy JSON remains readable during migration).
+- Portable builds keep `CursorFence.ini` beside the EXE; installed builds use `%APPDATA%\\CursorFence\\CursorFence.ini`.
+- Installed builds can check GitHub Releases on startup or manually, download the official installer, and hand off a silent in-app update.
+
 ## 0.2.3
 
 - Simplified the icon to prioritize utility and lock-state recognition.

@@ -40,6 +40,9 @@ B 站视频制作方案：[`docs/VIDEO_BILIBILI.md`](docs/VIDEO_BILIBILI.md)
 | **键盘灯同步** | 可选让 ScrollLock / CapsLock / NumLock 灯亮代表“已锁定” |
 | **清晰反馈** | 状态点、托盘图标、右下角通知；通知可关闭 |
 | **常驻工具** | 关闭窗口后驻留通知区域，支持当前用户开机启动 |
+| **自动语言** | 跟随 Windows 显示语言；中文显示中文，英文和其他语言使用 English 回退 |
+| **可编辑配置** | 便携版和安装版都支持 UTF-8 `CursorFence.ini` 手动配置 |
+| **安装版更新** | 仅安装版启动时检查 GitHub，可手动检查并在应用内完成更新 |
 | **不碰鼠标硬件** | 不移动光标、不改 DPI/回报率/加速度、不安装鼠标驱动 |
 | **多显示器友好** | 支持不同分辨率、负坐标、横竖屏排列和混合缩放 |
 
@@ -61,6 +64,38 @@ CursorFence-Portable.exe
 4. 再按一次 `ScrollLock` 解除。
 
 “当前显示器”使用的是系统工作区 `rcWork`：允许移动到工作区最底部，但不会把底部、顶部或侧边任务栏纳入可移动区域。边界在激活瞬间捕获，不会因为鼠标靠近边缘而跳到另一块屏幕。
+
+### 多语言与手动配置
+
+程序会自动读取 Windows 的显示语言：中文系统显示中文，英文系统显示 English；其他系统语言暂时使用 English 作为通用回退，不提供额外的语言选择项。配置文件统一使用 UTF-8 编码，避免中文快捷键名称在不同系统区域设置下乱码。
+
+两种发布版都可以通过编辑 `CursorFence.ini` 手动配置：
+
+- 便携版：放在 `CursorFence-Portable.exe` 同目录，方便随文件夹一起携带；
+- 安装版：放在 `%APPDATA%\\CursorFence\\CursorFence.ini`。
+
+首次运行或在设置页修改选项后，程序会自动生成这个文件。修改后重启 CursorFence 生效。示例：
+
+```ini
+[general]
+mode = window
+start_locked = false
+notifications_enabled = true
+sync_indicator = false
+
+[hotkey]
+modifiers = 0
+vk = 145
+label = ScrollLock
+```
+
+`mode` 可填 `window` 或 `screen`；`modifiers` 使用 Ctrl=2、Alt=1、Shift=4、Win=8 的组合值；`vk` 是 Windows 虚拟键码。旧版本的 `config.json` 仍会被读取，并在下一次保存时迁移到 INI。
+
+### 安装版自动更新
+
+只有 Installer 安装版会检查更新，Portable 版不会联网检查。安装版启动后会在后台访问 CursorFence 的 GitHub Releases；发现新版本时弹窗询问，你可以立即下载更新，也可以维持当前版本。设置页底部的“检查更新”按钮支持手动检查。
+
+更新文件只从本项目的 GitHub Release 下载。程序会下载官方 `CursorFence-Installer.exe`，启动静默安装并安全退出当前版本，由安装器完成文件替换；更新过程中不会修改鼠标锁定机制或安装额外服务。GitHub 不可访问时，程序继续正常工作，不会影响快捷键和鼠标锁定。
 
 ## 从源码运行
 
@@ -94,7 +129,7 @@ dist\CursorFence-Portable-windows-x64.zip
 dist\CursorFence-Installer.exe
 ```
 
-如果本机安装了 Inno Setup 6，脚本还会自动生成安装包；没有安装时仍会完成便携版构建。GitHub Actions 会自动准备 Inno Setup，推送版本标签（例如 `v0.2.3`）即可生成 Release 附件。
+如果本机安装了 Inno Setup 6，脚本还会自动生成安装包；没有安装时仍会完成便携版构建。GitHub Actions 会自动准备 Inno Setup，推送版本标签（例如 `v0.3.0`）即可生成 Release 附件。
 
 ## 为什么偏偏是 ScrollLock？
 

@@ -19,6 +19,21 @@ class CoreTests(unittest.TestCase):
         self.assertFalse(config["sync_indicator"])
         self.assertEqual(config["hotkey"]["vk"], 0x91)
 
+    def test_system_language_detection_follows_windows_locale(self) -> None:
+        self.assertEqual(cursor_fence.detect_system_language(locale_name="zh-CN"), "zh")
+        self.assertEqual(cursor_fence.detect_system_language(locale_name="en-US"), "en")
+        self.assertEqual(cursor_fence.detect_system_language(locale_name="ja-JP"), "en")
+        self.assertEqual(cursor_fence.detect_system_language(ui_language_id=2052), "zh")
+        self.assertEqual(cursor_fence.detect_system_language(ui_language_id=1033), "en")
+
+    def test_hand_edited_boolean_and_integer_values_are_tolerant(self) -> None:
+        self.assertTrue(cursor_fence.parse_bool("YES"))
+        self.assertFalse(cursor_fence.parse_bool("no", True))
+        self.assertTrue(cursor_fence.parse_bool("typo", True))
+        self.assertEqual(cursor_fence.parse_int("0x91"), 0x91)
+        self.assertEqual(cursor_fence.parse_int("145"), 145)
+        self.assertEqual(cursor_fence.parse_int("bad", 7), 7)
+
     def test_hotkey_display_order(self) -> None:
         modifiers = cursor_fence.MOD_CONTROL | cursor_fence.MOD_ALT | cursor_fence.MOD_SHIFT
         self.assertEqual(cursor_fence.format_hotkey(modifiers, "K"), "Ctrl+Alt+Shift+K")

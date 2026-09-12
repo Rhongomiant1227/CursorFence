@@ -47,6 +47,7 @@ foreach ($path in @($portableExe, $portableZip, $installerExe)) {
     --add-data "$iconPath;resources" `
     --version-file (Join-Path $projectRoot "resources\version_info.txt") `
     --collect-all pystray `
+    --hidden-import updater `
     --exclude-module PIL.AvifImagePlugin `
     --exclude-module PIL.WebPImagePlugin `
     --distpath $distPath `
@@ -57,6 +58,11 @@ foreach ($path in @($portableExe, $portableZip, $installerExe)) {
 if ($LASTEXITCODE -ne 0) {
     throw "PyInstaller 打包失败（退出码：$LASTEXITCODE）。"
 }
+
+# The onedir build is the installable distribution.  This marker lets the
+# application distinguish it from the one-file portable build at runtime, so
+# only installed copies perform automatic GitHub update checks.
+Set-Content -LiteralPath (Join-Path $outputDir "installer.marker") -Value "CursorFence installer build" -Encoding ASCII
 
 # A single-file portable build is convenient for users who explicitly want
 # one EXE.  The installed build below uses the onedir output for faster,
@@ -71,6 +77,7 @@ if ($LASTEXITCODE -ne 0) {
     --add-data "$iconPath;resources" `
     --version-file (Join-Path $projectRoot "resources\version_info.txt") `
     --collect-all pystray `
+    --hidden-import updater `
     --exclude-module PIL.AvifImagePlugin `
     --exclude-module PIL.WebPImagePlugin `
     --distpath $distPath `
@@ -100,7 +107,7 @@ if ($null -ne $isccCommand) {
     }
 }
 if ($isccPath) {
-    & $isccPath "/DMyAppVersion=0.2.3" $issPath
+    & $isccPath "/DMyAppVersion=0.3.0" $issPath
     if ($LASTEXITCODE -ne 0) {
         throw "安装包打包失败（退出码：$LASTEXITCODE）。"
     }

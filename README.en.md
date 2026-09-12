@@ -39,6 +39,9 @@ Python is not required. The single-file portable build is useful on a USB drive 
 | **ScrollLock indicator** | Optional LED synchronization: LED on means locked |
 | **Visible state** | Status dot, tray icon, and optional Windows notification |
 | **Portable utility** | Runs from an extracted folder; optional per-user startup |
+| **Automatic language** | Follows the Windows display language; Chinese UI for Chinese Windows, English fallback otherwise |
+| **Editable config** | Both builds support a hand-edited UTF-8 `CursorFence.ini` |
+| **Installer updates** | Only the installed build checks GitHub and can complete updates in-app |
 | **Mouse-safe design** | No cursor movement, DPI changes, polling-rate changes, or mouse driver |
 | **Multi-monitor ready** | Different resolutions, negative coordinates, portrait displays, and mixed scaling |
 
@@ -60,6 +63,38 @@ The installer places the onedir build in the current user's programs directory a
 4. Press `ScrollLock` again to release it.
 
 Monitor mode uses the Windows work area (`rcWork`). It includes the entire usable desktop down to the work-area edge, but excludes a taskbar docked to the bottom, top, or side. The monitor is captured once when locking starts, so moving toward an edge cannot silently switch the target display.
+
+### Languages and manual configuration
+
+The UI follows the Windows display language automatically: Chinese Windows uses Chinese, English Windows uses English, and other system languages fall back to English. There is no separate language selector. Configuration files are written as UTF-8 so shortcut labels remain readable across regional settings.
+
+Both distributions support a hand-edited `CursorFence.ini`:
+
+- Portable: next to `CursorFence-Portable.exe`, so it can travel with the folder;
+- Installer: `%APPDATA%\\CursorFence\\CursorFence.ini`.
+
+The file is created automatically on first run or after changing a setting. Restart CursorFence after editing it. Example:
+
+```ini
+[general]
+mode = window
+start_locked = false
+notifications_enabled = true
+sync_indicator = false
+
+[hotkey]
+modifiers = 0
+vk = 145
+label = ScrollLock
+```
+
+`mode` accepts `window` or `screen`. Modifier values are combined as Ctrl=2, Alt=1, Shift=4, and Win=8; `vk` is a Windows virtual-key code. Legacy `config.json` files remain readable and are migrated to INI on the next save.
+
+### Installer updates
+
+Only the installed build checks for updates; the portable build never performs an automatic network check. After startup, the installer build checks CursorFence GitHub Releases in the background. If a newer version is found, a dialog lets you download and install it or keep the current version. The **Check for updates** button in the settings window performs a manual check.
+
+Downloads are restricted to this project's GitHub Release assets. CursorFence downloads the official `CursorFence-Installer.exe`, starts it silently, and exits cleanly so Inno Setup can replace the installed files. No background service is installed. If GitHub is unavailable, the application continues to work normally and locking/hotkeys are unaffected.
 
 ## Run from source
 
@@ -93,7 +128,7 @@ dist\CursorFence-Portable-windows-x64.zip
 dist\CursorFence-Installer.exe
 ```
 
-When Inno Setup 6 is installed locally, the script also creates the installer; the portable build still completes without it. GitHub Actions prepares Inno Setup automatically. Push a version tag such as `v0.2.3` to create a release with both assets.
+When Inno Setup 6 is installed locally, the script also creates the installer; the portable build still completes without it. GitHub Actions prepares Inno Setup automatically. Push a version tag such as `v0.3.0` to create a release with both assets.
 
 ## Why ScrollLock?
 

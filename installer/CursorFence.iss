@@ -3,7 +3,7 @@
 #define MyAppURL "https://github.com/Rhongomiant1227/CursorFence"
 #define MyAppExeName "CursorFence.exe"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.3"
+  #define MyAppVersion "0.3.0"
 #endif
 
 [Setup]

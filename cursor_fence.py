@@ -9,7 +9,9 @@ events remain under the control of Windows and the mouse hardware.
 from __future__ import annotations
 
 import ctypes
+import configparser
 import json
+import locale
 import os
 import queue
 import sys
@@ -21,8 +23,223 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 
+def _locale_language(locale_name: object) -> str | None:
+    """Map a locale name to one of the languages supported by the UI."""
+    if not locale_name:
+        return None
+    normalized = str(locale_name).strip().lower().replace("-", "_")
+    if normalized.startswith("zh"):
+        return "zh"
+    if normalized.startswith("en"):
+        return "en"
+    return None
+
+
+def detect_system_language(locale_name: object | None = None, ui_language_id: int | None = None) -> str:
+    """Return the UI language selected by Windows, with an English fallback.
+
+    Windows exposes the user's display language as a LANGID.  The locale
+    fallback keeps this helper usable on older Windows builds and in tests,
+    while environment/locale values cover non-Windows tooling that imports
+    the module for static checks.
+    """
+    if ui_language_id is None and locale_name is None:
+        try:
+            ui_language_id = int(ctypes.windll.kernel32.GetUserDefaultUILanguage())
+        except (AttributeError, OSError, TypeError, ValueError):
+            ui_language_id = None
+    if ui_language_id is not None:
+        primary_id = int(ui_language_id) & 0x3FF
+        if primary_id == 0x04:  # Chinese (all Windows Chinese variants)
+            return "zh"
+        if primary_id == 0x09:  # English (all Windows English variants)
+            return "en"
+        # An explicit Windows display language takes precedence over the
+        # process locale.  Unsupported system languages use the documented
+        # English fallback rather than accidentally inheriting another locale.
+        return "en"
+    if locale_name is None:
+        candidates: list[object] = []
+        try:
+            candidates.append(locale.getlocale()[0])
+        except (ValueError, TypeError):
+            pass
+        for variable in ("LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
+            candidates.append(os.environ.get(variable))
+        for candidate in candidates:
+            language = _locale_language(candidate)
+            if language:
+                return language
+    else:
+        language = _locale_language(locale_name)
+        if language:
+            return language
+    # English is the neutral fallback for unsupported system languages.
+    return "en"
+
+
+LANGUAGE = detect_system_language()
+
+_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "zh": {
+        "platform_windows_only": "CursorFence 只能在 Windows 上运行。",
+        "tray_show_settings": "显示设置",
+        "tray_unlock": "解除鼠标锁定",
+        "tray_lock": "锁定鼠标",
+        "tray_exit": "退出 CursorFence",
+        "tray_status": "CursorFence — {status}",
+        "status_active_label": "已锁定",
+        "status_inactive_label": "未锁定",
+        "status_ready": "准备就绪",
+        "detail_ready": "按下快捷键开始锁定",
+        "subtitle": "轻量常驻工具 · 快捷键锁定鼠标范围",
+        "toggle_now": "立即切换",
+        "hotkey_title": "控制快捷键",
+        "hotkey_body": "全局生效，即使工具窗口在后台也可以切换",
+        "hotkey_hint": "支持 Ctrl / Alt / Shift / Win + 任意主键；默认 ScrollLock",
+        "led_sync_active": "让激活状态与 {pretty} 指示灯保持一致",
+        "led_sync_generic": "使用锁定键指示灯同步激活状态",
+        "led_warning_active": "启用后，程序会同步这个锁定键的键盘灯；可能改变系统当前的 CapsLock / NumLock / ScrollLock 状态。",
+        "led_warning_generic": "请将快捷键设为无修饰键的 ScrollLock、CapsLock 或 NumLock，才能使用键盘灯同步。",
+        "mode_title": "锁定范围",
+        "mode_window": "当前窗口",
+        "mode_window_hint": "以按下快捷键时的前台窗口为目标，窗口移动或缩放后会跟随",
+        "mode_screen": "当前显示器",
+        "mode_screen_hint": "锁定鼠标所在显示器的工作区（不含任务栏）",
+        "options_title": "启动与常驻",
+        "startup_toggle": "登录 Windows 后自动运行（当前用户）",
+        "start_locked_toggle": "程序启动后自动启用锁定",
+        "notifications_toggle": "状态切换时显示右下角通知",
+        "footer_hint": "关闭窗口会最小化到通知区域。",
+        "minimize_tray": "最小化至托盘",
+        "disclaimer": "鼠标锁定仅使用 Windows ClipCursor；不会移动或模拟鼠标输入，不会改变 DPI、回报率或加速度。",
+        "led_confirm_title": "启用键盘灯同步？",
+        "led_confirm_message": "已选择 {pretty}。\n\n启用后：键盘灯亮 = 鼠标已锁定；键盘灯灭 = 鼠标未锁定。\n{consequence}\n\n是否启用？",
+        "consequence_caps": "Caps Lock 会继续改变字母大小写。",
+        "consequence_num": "Num Lock 会继续改变数字键盘行为。",
+        "consequence_scroll": "Scroll Lock 会继续保留其系统切换状态。",
+        "tray_failure": "通知区域图标异常，详细信息已写入本地日志",
+        "notify_lock": "鼠标已锁定（{mode}）\n按 {hotkey} 解除",
+        "notify_unlock": "鼠标锁定已解除",
+        "callback_error": "程序遇到异常，详细信息已写入本地日志",
+        "startup_enabled": "已启用开机自动运行",
+        "startup_disabled": "已关闭开机自动运行",
+        "startup_error_title": "无法修改开机启动",
+        "startup_error_message": "Windows 拒绝了当前用户的启动项修改。请检查注册表权限后重试。",
+        "record_prompt": "按任意键…（Esc 取消）",
+        "record_button": "录制快捷键",
+        "hotkey_error": "快捷键处理异常，详细信息已写入本地日志",
+        "no_target": "没有可锁定的前台窗口",
+        "detail_active": "范围：{mode} · 再按 {hotkey} 解除",
+        "detail_auto_unlock": "目标窗口已关闭或最小化，已自动解除",
+        "clip_failure": "Windows 拒绝了鼠标边界设置",
+        "duplicate_instance": "CursorFence 已在运行。请从通知区域图标打开设置。",
+        "fatal_error": "CursorFence 遇到未处理错误，已解除鼠标锁定。\n\n错误日志：{path}",
+        "check_updates": "检查更新",
+        "update_checking": "正在检查更新…",
+        "update_unavailable": "暂时无法连接 GitHub 更新服务",
+        "update_unavailable_detail": "暂时无法连接 GitHub 更新服务，请稍后重试。",
+        "update_dialog_title": "发现新版本",
+        "update_dialog_message": "发现 CursorFence {tag}。\n\n是否下载并安装？程序将退出并由 GitHub 官方安装包完成更新。",
+        "update_skipped": "已跳过更新（当前 v{version}）",
+        "update_latest": "当前已是最新版本 v{version}",
+        "update_latest_detail": "当前已是最新版本（v{version}）。",
+        "update_downloading": "正在下载 {tag}…",
+        "update_download_failed": "更新下载失败，请稍后重试",
+        "update_download_failed_detail": "无法下载更新安装包，请检查网络后重试。",
+        "update_launch_failed": "无法启动更新安装程序",
+        "update_launch_failed_detail": "无法启动更新安装程序。",
+        "update_error_title": "检查更新",
+        "update_failed_title": "更新失败",
+        "config_header": "# CursorFence 用户配置（UTF-8）\n# 修改后重启 CursorFence 后生效。\n\n",
+        "config_note": "可直接编辑此文件，重启 CursorFence 后生效。",
+    },
+    "en": {
+        "platform_windows_only": "CursorFence runs on Windows only.",
+        "tray_show_settings": "Show settings",
+        "tray_unlock": "Unlock mouse",
+        "tray_lock": "Lock mouse",
+        "tray_exit": "Exit CursorFence",
+        "tray_status": "CursorFence — {status}",
+        "status_active_label": "Locked",
+        "status_inactive_label": "Unlocked",
+        "status_ready": "Ready",
+        "detail_ready": "Press the hotkey to start locking",
+        "subtitle": "A lightweight utility that locks the mouse to a selected area",
+        "toggle_now": "Toggle now",
+        "hotkey_title": "Control hotkey",
+        "hotkey_body": "Works globally, even when this window is in the background",
+        "hotkey_hint": "Ctrl / Alt / Shift / Win + any main key; default: ScrollLock",
+        "led_sync_active": "Keep the active state in sync with the {pretty} indicator",
+        "led_sync_generic": "Use the lock-key indicator to sync the active state",
+        "led_warning_active": "When enabled, the app syncs this lock key's keyboard indicator; this may change the current CapsLock / NumLock / ScrollLock state.",
+        "led_warning_generic": "Set the hotkey to an unmodified ScrollLock, CapsLock, or NumLock to use keyboard-indicator sync.",
+        "mode_title": "Lock range",
+        "mode_window": "Current window",
+        "mode_window_hint": "Targets the foreground window when the hotkey is pressed and follows moves or resizing",
+        "mode_screen": "Current monitor",
+        "mode_screen_hint": "Locks the work area of the monitor containing the mouse (excluding the taskbar)",
+        "options_title": "Startup and tray",
+        "startup_toggle": "Run automatically after signing in to Windows (current user)",
+        "start_locked_toggle": "Enable the lock automatically when the app starts",
+        "notifications_toggle": "Show a notification when the lock state changes",
+        "footer_hint": "Closing the window minimizes CursorFence to the notification area.",
+        "minimize_tray": "Minimize to tray",
+        "disclaimer": "Mouse locking uses Windows ClipCursor only; it does not move or simulate input or change DPI, polling rate, or acceleration.",
+        "led_confirm_title": "Enable keyboard-indicator sync?",
+        "led_confirm_message": "Selected {pretty}.\n\nWhen enabled: indicator on = mouse locked; indicator off = mouse unlocked.\n{consequence}\n\nEnable it?",
+        "consequence_caps": "Caps Lock will continue to change letter casing.",
+        "consequence_num": "Num Lock will continue to change numeric-keypad behavior.",
+        "consequence_scroll": "Scroll Lock will retain its normal system toggle behavior.",
+        "tray_failure": "The notification-area icon failed; details were written to the local log",
+        "notify_lock": "Mouse locked ({mode})\nPress {hotkey} to unlock",
+        "notify_unlock": "Mouse lock released",
+        "callback_error": "The app encountered an error; details were written to the local log",
+        "startup_enabled": "Enabled automatic startup",
+        "startup_disabled": "Disabled automatic startup",
+        "startup_error_title": "Unable to change startup",
+        "startup_error_message": "Windows rejected the startup-entry change for the current user. Check registry permissions and try again.",
+        "record_prompt": "Press any key… (Esc cancels)",
+        "record_button": "Record hotkey",
+        "hotkey_error": "Hotkey processing failed; details were written to the local log",
+        "no_target": "No foreground window can be locked",
+        "detail_active": "Range: {mode} · Press {hotkey} again to unlock",
+        "detail_auto_unlock": "The target window closed or was minimized; lock released",
+        "clip_failure": "Windows rejected the mouse-boundary request",
+        "duplicate_instance": "CursorFence is already running. Open settings from the notification-area icon.",
+        "fatal_error": "CursorFence encountered an unexpected error and released the mouse lock.\n\nError log: {path}",
+        "check_updates": "Check for updates",
+        "update_checking": "Checking for updates…",
+        "update_unavailable": "GitHub update service is temporarily unavailable",
+        "update_unavailable_detail": "GitHub update service is temporarily unavailable. Please try again later.",
+        "update_dialog_title": "Update available",
+        "update_dialog_message": "CursorFence {tag} is available.\n\nDownload and install it now? The app will close and the official GitHub installer will complete the update.",
+        "update_skipped": "Update skipped (current v{version})",
+        "update_latest": "You are already running the latest version v{version}",
+        "update_latest_detail": "You are already running the latest version (v{version}).",
+        "update_downloading": "Downloading {tag}…",
+        "update_download_failed": "Update download failed; please try again later",
+        "update_download_failed_detail": "The update installer could not be downloaded. Check your network and try again.",
+        "update_launch_failed": "Could not start the update installer",
+        "update_launch_failed_detail": "The update installer could not be started.",
+        "update_error_title": "Check for updates",
+        "update_failed_title": "Update failed",
+        "config_header": "# CursorFence user configuration (UTF-8)\n# Restart CursorFence after editing this file.\n\n",
+        "config_note": "You can edit this file directly; restart CursorFence after editing.",
+    },
+}
+
+
+def tr(key: str, **values: object) -> str:
+    """Translate a user-visible message for the detected system language."""
+    template = _TRANSLATIONS.get(LANGUAGE, _TRANSLATIONS["en"]).get(key)
+    if template is None:
+        template = _TRANSLATIONS["en"].get(key, key)
+    return template.format(**values) if values else template
+
+
 if sys.platform != "win32":
-    raise SystemExit("CursorFence 只能在 Windows 上运行。")
+    raise SystemExit(tr("platform_windows_only"))
 
 
 # Make Win32 coordinates line up with the physical monitor/window coordinates
@@ -182,6 +399,7 @@ HOTKEY_POLL_MS = 8
 BOUNDARY_REFRESH_MS = 40
 CURSOR_REAPPLY_MS = 2
 NOTIFICATION_DISPLAY_MS = 2600
+APP_VERSION = "0.3.0"
 
 
 def write_error_log(context: str, exc_info: tuple | None = None) -> None:
@@ -200,6 +418,49 @@ def resource_path(*parts: str) -> Path:
     """Resolve an asset from source or from PyInstaller's extracted bundle."""
     base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
     return base.joinpath(*parts)
+
+
+def config_file_path() -> Path:
+    """Return the user-editable INI location for this build.
+
+    An installed onedir build carries ``installer.marker`` next to its EXE;
+    portable builds keep the INI beside the EXE so it can travel with the
+    archive.  Source runs use the normal per-user application directory.
+    """
+    appdata = Path(os.environ.get("APPDATA", Path.home())) / APP_NAME
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).resolve().parent
+        if (exe_dir / "installer.marker").is_file():
+            return appdata / "CursorFence.ini"
+        return exe_dir / "CursorFence.ini"
+    return appdata / "CursorFence.ini"
+
+
+def parse_bool(value, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "on", "是", "启用"}:
+        return True
+    if normalized in {"0", "false", "no", "off", "否", "禁用"}:
+        return False
+    return default
+
+
+def parse_int(value, default: int = 0) -> int:
+    """Parse decimal or ``0x`` integer values from hand-edited INI files."""
+    if isinstance(value, bool):
+        return int(value)
+    try:
+        text = str(value).strip()
+        try:
+            return int(text, 0)
+        except ValueError:
+            return int(text, 10)
+    except (TypeError, ValueError):
+        return default
 
 
 def get_top_level_hwnd(widget: tk.Tk) -> int:
@@ -507,10 +768,10 @@ class TrayController:
     def make_menu(self):
         item = self.pystray.MenuItem
         return self.pystray.Menu(
-            item("显示设置", self.show_window, default=True),
-            item(lambda _: "解除鼠标锁定" if self.app.active else "锁定鼠标", self.toggle_lock),
+            item(tr("tray_show_settings"), self.show_window, default=True),
+            item(lambda _: tr("tray_unlock" if self.app.active else "tray_lock"), self.toggle_lock),
             self.pystray.Menu.SEPARATOR,
-            item("退出 CursorFence", self.quit_app),
+            item(tr("tray_exit"), self.quit_app),
         )
 
     def start(self) -> None:
@@ -545,7 +806,10 @@ class TrayController:
             return
         try:
             self.icon.icon = self.make_image(active)
-            self.icon.title = f"{APP_DISPLAY_NAME} — {'已锁定' if active else '未锁定'}"
+            self.icon.title = tr(
+                "tray_status",
+                status=tr("status_active_label" if active else "status_inactive_label"),
+            )
             self.icon.update_menu()
         except Exception:
             # The tray backend can still be starting or stopping. Its next
@@ -757,14 +1021,26 @@ class CursorBoundaryGuard:
 class CursorFenceApp:
     """Application state and native cursor-boundary operations."""
 
-    def __init__(self, root: tk.Tk, startup_foreground: int | None = None) -> None:
+    def __init__(
+        self,
+        root: tk.Tk,
+        startup_foreground: int | None = None,
+        launched_at_startup: bool = False,
+    ) -> None:
         self.root = root
         # Capture the foreground window before this utility has a chance to
         # become active.  This makes "启动时自动启用" useful in window mode
         # instead of accidentally locking to the utility's own settings window.
         self.startup_foreground = startup_foreground
-        appdata = Path(os.environ.get("APPDATA", Path.home()))
-        self.config_path = appdata / APP_NAME / "config.json"
+        self.launched_at_startup = launched_at_startup
+        self.config_path = config_file_path()
+        appdata = Path(os.environ.get("APPDATA", Path.home())) / APP_NAME
+        # Older releases stored JSON under APPDATA even for portable builds;
+        # keep both locations discoverable so upgrading never loses settings.
+        self.legacy_config_paths = [self.config_path.with_name("config.json")]
+        legacy_appdata = appdata / "config.json"
+        if legacy_appdata not in self.legacy_config_paths:
+            self.legacy_config_paths.append(legacy_appdata)
         self.config = self.load_config()
         self.active = False
         self.target_hwnd: int | None = None
@@ -785,19 +1061,21 @@ class CursorFenceApp:
         self.recording = False
         self.record_modifiers = 0
         self.record_modifier_names: set[str] = set()
-        self.status_message = "准备就绪"
+        self.status_message = tr("status_ready")
+        self.installed_build = bool(getattr(sys, "frozen", False) and (Path(sys.executable).resolve().parent / "installer.marker").is_file())
+        self.update_check_in_progress = False
 
         self.mode_var = tk.StringVar(value=self.config["mode"])
         self.start_locked_var = tk.BooleanVar(value=self.config.get("start_locked", False))
         self.startup_var = tk.BooleanVar(value=startup_enabled())
         self.notifications_var = tk.BooleanVar(value=self.config.get("notifications_enabled", True))
         self.sync_indicator_var = tk.BooleanVar(value=self.config.get("sync_indicator", False))
-        self.sync_indicator_label_var = tk.StringVar(value="跟随 Scroll Lock 指示灯状态")
+        self.sync_indicator_label_var = tk.StringVar(value=tr("led_sync_generic"))
         self.indicator_warning_var = tk.StringVar(value="")
-        self.status_var = tk.StringVar(value="未锁定")
-        self.detail_var = tk.StringVar(value="按下快捷键开始锁定")
+        self.status_var = tk.StringVar(value=tr("status_inactive_label"))
+        self.detail_var = tk.StringVar(value=tr("detail_ready"))
         self.hotkey_var = tk.StringVar(value=self.config["hotkey"]["label"])
-        self.record_button_var = tk.StringVar(value="录制快捷键")
+        self.record_button_var = tk.StringVar(value=tr("record_button"))
         self.build_ui()
         self.self_hwnd = get_top_level_hwnd(self.root)
         self.tray = TrayController(self)
@@ -805,6 +1083,11 @@ class CursorFenceApp:
         self.root.after(20, self.apply_window_branding)
         self.root.after(100, self.start_services)
         self.root.after(250, self.watch_lock)
+        if self.installed_build:
+            # Keep startup responsive; GitHub may be unavailable or slow.
+            # This also runs for the optional Windows startup launch, matching
+            # the user's "check on every startup" preference.
+            self.root.after(1400, self.check_updates_startup)
         self.root.protocol("WM_DELETE_WINDOW", self.hide_window)
 
     @staticmethod
@@ -841,26 +1124,48 @@ class CursorFenceApp:
         try:
             saved = None
             if self.config_path.is_file():
-                with self.config_path.open("r", encoding="utf-8") as handle:
+                parser = configparser.ConfigParser(interpolation=None)
+                parser.read(self.config_path, encoding="utf-8-sig")
+                hot = parser["hotkey"] if parser.has_section("hotkey") else {}
+                general = parser["general"] if parser.has_section("general") else parser.defaults()
+                saved = {
+                    "hotkey": {
+                        "modifiers": parse_int(hot.get("modifiers"), config["hotkey"]["modifiers"]),
+                        "vk": parse_int(hot.get("vk"), config["hotkey"]["vk"]),
+                        "label": hot.get("label", config["hotkey"]["label"]),
+                    },
+                    "mode": general.get("mode", config["mode"]),
+                    "start_locked": parse_bool(general.get("start_locked"), config["start_locked"]),
+                    "notifications_enabled": parse_bool(general.get("notifications_enabled"), True),
+                    "sync_indicator": parse_bool(general.get("sync_indicator"), False),
+                }
+            else:
+                legacy_path = next((path for path in self.legacy_config_paths if path.is_file()), None)
+                if legacy_path is None:
+                    return config
+                # Upgrade legacy JSON settings transparently on next save.
+                with legacy_path.open("r", encoding="utf-8-sig") as handle:
                     saved = json.load(handle)
             if isinstance(saved, dict):
                 hotkey = saved.get("hotkey", {})
-                if isinstance(hotkey, dict) and 0 < int(hotkey.get("vk", 0)) < 256:
+                vk = parse_int(hotkey.get("vk"), config["hotkey"]["vk"]) if isinstance(hotkey, dict) else config["hotkey"]["vk"]
+                if isinstance(hotkey, dict) and 0 < vk < 256:
                     config["hotkey"].update(
                         {
-                            "modifiers": int(hotkey.get("modifiers", 0)) & (MOD_ALT | MOD_CONTROL | MOD_SHIFT | MOD_WIN),
-                            "vk": int(hotkey["vk"]),
-                            "label": str(hotkey.get("label", "ScrollLock")),
+                            "modifiers": parse_int(hotkey.get("modifiers"), 0) & (MOD_ALT | MOD_CONTROL | MOD_SHIFT | MOD_WIN),
+                            "vk": vk,
+                            "label": str(hotkey.get("label", "ScrollLock")) or "ScrollLock",
                         }
                     )
                 if saved.get("mode") in ("window", "screen"):
                     config["mode"] = saved["mode"]
-                config["start_locked"] = bool(saved.get("start_locked", False))
+                config["start_locked"] = parse_bool(saved.get("start_locked", False))
                 # New installations default notifications on.  Keeping the
                 # default here also upgrades older config files seamlessly.
-                config["notifications_enabled"] = bool(saved.get("notifications_enabled", True))
-                config["sync_indicator"] = bool(saved.get("sync_indicator", False))
-        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                config["notifications_enabled"] = parse_bool(saved.get("notifications_enabled", True), True)
+                config["sync_indicator"] = parse_bool(saved.get("sync_indicator", False))
+        except (OSError, ValueError, TypeError, configparser.Error, json.JSONDecodeError):
+            write_error_log(f"读取配置失败：{self.config_path}")
             pass
         return config
 
@@ -869,14 +1174,36 @@ class CursorFenceApp:
         self.config["start_locked"] = bool(self.start_locked_var.get())
         self.config["notifications_enabled"] = bool(self.notifications_var.get())
         self.config["sync_indicator"] = bool(self.sync_indicator_var.get())
-        self.config_path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self.config_path.with_suffix(".tmp")
-        with temporary.open("w", encoding="utf-8") as handle:
-            json.dump(self.config, handle, ensure_ascii=False, indent=2)
-        temporary.replace(self.config_path)
+        try:
+            self.config_path.parent.mkdir(parents=True, exist_ok=True)
+            parser = configparser.ConfigParser(interpolation=None)
+            parser["general"] = {
+                "mode": self.config["mode"],
+                "start_locked": "true" if self.config["start_locked"] else "false",
+                "notifications_enabled": "true" if self.config["notifications_enabled"] else "false",
+                "sync_indicator": "true" if self.config["sync_indicator"] else "false",
+            }
+            hotkey = self.config.get("hotkey", {})
+            parser["hotkey"] = {
+                "modifiers": str(int(hotkey.get("modifiers", 0))),
+                "vk": str(int(hotkey.get("vk", 0x91))),
+                "label": str(hotkey.get("label", "ScrollLock")),
+            }
+            parser["about"] = {"version": APP_VERSION, "note": tr("config_note")}
+            with temporary.open("w", encoding="utf-8", newline="") as handle:
+                handle.write(tr("config_header"))
+                parser.write(handle)
+            temporary.replace(self.config_path)
+        except (OSError, configparser.Error):
+            write_error_log(f"保存配置失败：{self.config_path}", sys.exc_info())
+            try:
+                temporary.unlink()
+            except OSError:
+                pass
 
     def build_ui(self) -> None:
-        self.root.title("CursorFence")
+        self.root.title(APP_DISPLAY_NAME)
         # Keep every control visible without a scroll bar. This is still a
         # compact utility window, but it needs room for the startup options.
         self.root.geometry("560x850")
@@ -911,8 +1238,8 @@ class CursorFenceApp:
         header.pack(fill="x")
         title_block = ttk.Frame(header, style="App.TFrame")
         title_block.pack(side="left", fill="x", expand=True)
-        ttk.Label(title_block, text="CursorFence", style="Title.TLabel").pack(anchor="w")
-        ttk.Label(title_block, text="轻量常驻工具 · 快捷键锁定鼠标范围", style="Subtitle.TLabel").pack(anchor="w", pady=(3, 18))
+        ttk.Label(title_block, text=APP_DISPLAY_NAME, style="Title.TLabel").pack(anchor="w")
+        ttk.Label(title_block, text=tr("subtitle"), style="Subtitle.TLabel").pack(anchor="w", pady=(3, 18))
 
         status_card = ttk.Frame(outer, style="Card.TFrame", padding=(18, 16))
         status_card.pack(fill="x", pady=(0, 12))
@@ -922,20 +1249,20 @@ class CursorFenceApp:
         self.status_dot.pack(side="left", padx=(0, 9), pady=(2, 0))
         self.status_dot_id = self.status_dot.create_oval(2, 2, 11, 11, fill="#697386", outline="")
         ttk.Label(top, textvariable=self.status_var, style="Status.TLabel").pack(side="left")
-        ttk.Button(top, text="立即切换", style="Primary.TButton", command=self.toggle_lock).pack(side="right")
+        ttk.Button(top, text=tr("toggle_now"), style="Primary.TButton", command=self.toggle_lock).pack(side="right")
         ttk.Label(status_card, textvariable=self.detail_var, style="Hint.TLabel").pack(anchor="w", pady=(9, 0))
 
         hotkey_card = ttk.Frame(outer, style="Card.TFrame", padding=(18, 16))
         hotkey_card.pack(fill="x", pady=(0, 12))
-        ttk.Label(hotkey_card, text="控制快捷键", style="CardTitle.TLabel").pack(anchor="w")
-        ttk.Label(hotkey_card, text="全局生效，即使工具窗口在后台也可以切换", style="Body.TLabel").pack(anchor="w", pady=(4, 12))
+        ttk.Label(hotkey_card, text=tr("hotkey_title"), style="CardTitle.TLabel").pack(anchor="w")
+        ttk.Label(hotkey_card, text=tr("hotkey_body"), style="Body.TLabel").pack(anchor="w", pady=(4, 12))
         hotkey_line = ttk.Frame(hotkey_card, style="Card.TFrame")
         hotkey_line.pack(fill="x")
         key_display = tk.Label(hotkey_line, textvariable=self.hotkey_var, bg="#0f1117", fg="#f4f7fb", font=("Consolas", 11, "bold"), padx=12, pady=8, anchor="w")
         key_display.pack(side="left", fill="x", expand=True)
         self.record_button = ttk.Button(hotkey_line, textvariable=self.record_button_var, style="Secondary.TButton", command=self.begin_recording)
         self.record_button.pack(side="right", padx=(10, 0))
-        ttk.Label(hotkey_card, text="支持 Ctrl / Alt / Shift / Win + 任意主键；默认 ScrollLock", style="Hint.TLabel").pack(anchor="w", pady=(10, 0))
+        ttk.Label(hotkey_card, text=tr("hotkey_hint"), style="Hint.TLabel").pack(anchor="w", pady=(10, 0))
         self.sync_indicator_check = ToggleRow(
             hotkey_card,
             variable=self.sync_indicator_var,
@@ -950,18 +1277,18 @@ class CursorFenceApp:
 
         mode_card = ttk.Frame(outer, style="Card.TFrame", padding=(18, 16))
         mode_card.pack(fill="x", pady=(0, 12))
-        ttk.Label(mode_card, text="锁定范围", style="CardTitle.TLabel").pack(anchor="w")
-        ttk.Radiobutton(mode_card, text="当前窗口", value="window", variable=self.mode_var, style="Mode.TRadiobutton", command=self.on_mode_changed).pack(anchor="w", pady=(8, 0))
-        ttk.Label(mode_card, text="以按下快捷键时的前台窗口为目标，窗口移动或缩放后会跟随", style="Hint.TLabel").pack(anchor="w", padx=(25, 0))
-        ttk.Radiobutton(mode_card, text="当前显示器", value="screen", variable=self.mode_var, style="Mode.TRadiobutton", command=self.on_mode_changed).pack(anchor="w", pady=(10, 0))
-        ttk.Label(mode_card, text="锁定鼠标所在显示器的工作区（不含任务栏）", style="Hint.TLabel").pack(anchor="w", padx=(25, 0))
+        ttk.Label(mode_card, text=tr("mode_title"), style="CardTitle.TLabel").pack(anchor="w")
+        ttk.Radiobutton(mode_card, text=tr("mode_window"), value="window", variable=self.mode_var, style="Mode.TRadiobutton", command=self.on_mode_changed).pack(anchor="w", pady=(8, 0))
+        ttk.Label(mode_card, text=tr("mode_window_hint"), style="Hint.TLabel").pack(anchor="w", padx=(25, 0))
+        ttk.Radiobutton(mode_card, text=tr("mode_screen"), value="screen", variable=self.mode_var, style="Mode.TRadiobutton", command=self.on_mode_changed).pack(anchor="w", pady=(10, 0))
+        ttk.Label(mode_card, text=tr("mode_screen_hint"), style="Hint.TLabel").pack(anchor="w", padx=(25, 0))
 
         options = ttk.Frame(outer, style="Card.TFrame", padding=(18, 12))
         options.pack(fill="x")
-        ttk.Label(options, text="启动与常驻", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 5))
+        ttk.Label(options, text=tr("options_title"), style="CardTitle.TLabel").pack(anchor="w", pady=(0, 5))
         ToggleRow(
             options,
-            text="登录 Windows 后自动运行（当前用户）",
+            text=tr("startup_toggle"),
             variable=self.startup_var,
             command=self.on_startup_changed,
             background="#171b24",
@@ -970,7 +1297,7 @@ class CursorFenceApp:
         ).pack(anchor="w")
         ToggleRow(
             options,
-            text="程序启动后自动启用锁定",
+            text=tr("start_locked_toggle"),
             variable=self.start_locked_var,
             command=self.save_config,
             background="#171b24",
@@ -979,7 +1306,7 @@ class CursorFenceApp:
         ).pack(anchor="w", pady=(6, 0))
         ToggleRow(
             options,
-            text="状态切换时显示右下角通知",
+            text=tr("notifications_toggle"),
             variable=self.notifications_var,
             command=self.on_notifications_changed,
             background="#171b24",
@@ -989,10 +1316,103 @@ class CursorFenceApp:
 
         footer = ttk.Frame(outer, style="App.TFrame")
         footer.pack(fill="x", pady=(14, 0))
-        ttk.Label(footer, text="关闭窗口会最小化到通知区域。", style="Subtitle.TLabel").pack(side="left")
-        ttk.Button(footer, text="最小化至托盘", style="Secondary.TButton", command=self.hide_window).pack(side="right")
-        ttk.Label(outer, text="鼠标锁定仅使用 Windows ClipCursor；不会移动或模拟鼠标输入，不会改变 DPI、回报率或加速度。", style="Subtitle.TLabel", wraplength=490, justify="left").pack(anchor="w", pady=(10, 0))
+        ttk.Label(footer, text=tr("footer_hint"), style="Subtitle.TLabel").pack(side="left")
+        ttk.Button(footer, text=tr("minimize_tray"), style="Secondary.TButton", command=self.hide_window).pack(side="right")
+        if self.installed_build:
+            ttk.Button(footer, text=tr("check_updates"), style="Secondary.TButton", command=self.check_updates_manual).pack(side="right", padx=(0, 8))
+        ttk.Label(outer, text=tr("disclaimer"), style="Subtitle.TLabel", wraplength=490, justify="left").pack(anchor="w", pady=(10, 0))
         self.update_indicator_sync_ui()
+
+    def _fetch_update(self, manual: bool = False) -> None:
+        """Fetch release metadata off the Tk thread (installer builds only)."""
+        if not self.installed_build or self.update_check_in_progress or self.closing:
+            return
+        self.update_check_in_progress = True
+        self.detail_var.set(tr("update_checking"))
+
+        def worker() -> None:
+            try:
+                from updater import fetch_latest_release, is_newer_version
+
+                release = fetch_latest_release()
+                newer = bool(release and is_newer_version(APP_VERSION, release.tag))
+                self.root.after(0, lambda: self._update_result(release, newer, manual))
+            except Exception:
+                write_error_log("检查更新失败", sys.exc_info())
+                self.root.after(0, lambda: self._update_result(None, False, manual))
+
+        threading.Thread(target=worker, name="update-check", daemon=True).start()
+
+    def check_updates_startup(self) -> None:
+        try:
+            from updater import cleanup_old_downloads
+
+            cleanup_old_downloads()
+        except Exception:
+            write_error_log("清理旧更新文件失败", sys.exc_info())
+        self._fetch_update(manual=False)
+
+    def check_updates_manual(self) -> None:
+        self._fetch_update(manual=True)
+
+    def _update_result(self, release, newer: bool, manual: bool) -> None:
+        self.update_check_in_progress = False
+        if self.closing:
+            return
+        if not release:
+            self.detail_var.set(tr("update_unavailable") if manual else self.status_message)
+            if manual:
+                messagebox.showwarning(tr("update_error_title"), tr("update_unavailable_detail"), parent=self.root)
+            return
+        if not newer:
+            self.detail_var.set(tr("update_latest", version=APP_VERSION))
+            if manual:
+                messagebox.showinfo(tr("update_error_title"), tr("update_latest_detail", version=APP_VERSION), parent=self.root)
+            return
+        if not messagebox.askyesno(
+            tr("update_dialog_title"),
+            tr("update_dialog_message", tag=release.tag),
+            parent=self.root,
+        ):
+            self.detail_var.set(tr("update_skipped", version=APP_VERSION))
+            return
+        self._download_update(release)
+
+    def _download_update(self, release) -> None:
+        self.update_check_in_progress = True
+        self.detail_var.set(tr("update_downloading", tag=release.tag))
+
+        def worker() -> None:
+            try:
+                from updater import download_installer
+
+                installer = download_installer(release)
+                self.root.after(0, lambda: self._launch_update(installer))
+            except Exception:
+                write_error_log("下载更新失败", sys.exc_info())
+                self.root.after(0, lambda: self._update_download_failed())
+
+        threading.Thread(target=worker, name="update-download", daemon=True).start()
+
+    def _update_download_failed(self) -> None:
+        self.update_check_in_progress = False
+        if not self.closing:
+            self.detail_var.set(tr("update_download_failed"))
+            messagebox.showerror(tr("update_failed_title"), tr("update_download_failed_detail"), parent=self.root)
+
+    def _launch_update(self, installer: Path) -> None:
+        try:
+            from updater import launch_installer
+
+            launch_installer(installer)
+            # close() releases ClipCursor, stops worker threads and exits;
+            # Inno Setup then replaces the installed files silently.
+            self.close()
+        except Exception:
+            self.update_check_in_progress = False
+            write_error_log("启动更新安装程序失败", sys.exc_info())
+            self.detail_var.set(tr("update_launch_failed"))
+            messagebox.showerror(tr("update_failed_title"), tr("update_launch_failed_detail"), parent=self.root)
 
     def on_mode_changed(self) -> None:
         self.save_config()
@@ -1014,12 +1434,12 @@ class CursorFenceApp:
         vk = int(hotkey.get("vk", 0))
         if vk in LOCK_KEY_INFO and int(hotkey.get("modifiers", 0)) == 0:
             key_name, pretty = LOCK_KEY_INFO[vk]
-            self.sync_indicator_label_var.set(f"让激活状态与 {pretty} 指示灯保持一致")
-            self.indicator_warning_var.set("启用后，程序会同步这个锁定键的键盘灯；可能改变系统当前的 CapsLock / NumLock / ScrollLock 状态。")
+            self.sync_indicator_label_var.set(tr("led_sync_active", pretty=pretty))
+            self.indicator_warning_var.set(tr("led_warning_active"))
             self.sync_indicator_check.configure(state="normal")
         else:
-            self.sync_indicator_label_var.set("使用锁定键指示灯同步激活状态")
-            self.indicator_warning_var.set("请将快捷键设为无修饰键的 ScrollLock、CapsLock 或 NumLock，才能使用键盘灯同步。")
+            self.sync_indicator_label_var.set(tr("led_sync_generic"))
+            self.indicator_warning_var.set(tr("led_warning_generic"))
             self.sync_indicator_check.configure(state="disabled")
             self.sync_indicator_var.set(False)
             self.config["sync_indicator"] = False
@@ -1029,10 +1449,11 @@ class CursorFenceApp:
         self.update_indicator_sync_ui()
         if self.sync_indicator_var.get() and self.indicator_sync_supported():
             key_name, pretty = LOCK_KEY_INFO[int(self.config["hotkey"]["vk"])]
-            consequence = "Caps Lock 会继续改变字母大小写。" if key_name == "CapsLock" else "Num Lock 会继续改变数字键盘行为。" if key_name == "NumLock" else "Scroll Lock 会继续保留其系统切换状态。"
+            consequence_key = "consequence_caps" if key_name == "CapsLock" else "consequence_num" if key_name == "NumLock" else "consequence_scroll"
+            consequence = tr(consequence_key)
             enabled = messagebox.askyesno(
-                "启用键盘灯同步？",
-                f"已选择 {pretty}。\n\n启用后：键盘灯亮 = 鼠标已锁定；键盘灯灭 = 鼠标未锁定。\n{consequence}\n\n是否启用？",
+                tr("led_confirm_title"),
+                tr("led_confirm_message", pretty=pretty, consequence=consequence),
                 parent=self.root,
             )
             if not enabled:
@@ -1094,7 +1515,7 @@ class CursorFenceApp:
                 self.deactivate_lock(from_indicator=True)
 
     def on_tray_failure(self) -> None:
-        self.detail_var.set("通知区域图标异常，详细信息已写入本地日志")
+        self.detail_var.set(tr("tray_failure"))
         write_error_log("通知区域图标线程报告异常")
 
     def notify_state(self, active: bool, mode_text: str | None = None) -> None:
@@ -1107,10 +1528,10 @@ class CursorFenceApp:
         if not self.notifications_var.get():
             return
         if active:
-            mode_text = mode_text or ("当前窗口" if self.mode_var.get() == "window" else "当前显示器")
-            message = f"鼠标已锁定（{mode_text}）\n按 {self.hotkey_var.get()} 解除"
+            mode_text = mode_text or (tr("mode_window") if self.mode_var.get() == "window" else tr("mode_screen"))
+            message = tr("notify_lock", mode=mode_text, hotkey=self.hotkey_var.get())
         else:
-            message = "鼠标锁定已解除"
+            message = tr("notify_unlock")
         if not self.tray.notify(message):
             # Classic notification balloons can be disabled globally.  A very
             # short system beep is a non-blocking fallback on legacy Windows;
@@ -1125,18 +1546,18 @@ class CursorFenceApp:
             return
         write_error_log("Tkinter 回调异常", (exc, value, tb))
         if not self.closing:
-            self.detail_var.set("程序遇到异常，详细信息已写入本地日志")
+            self.detail_var.set(tr("callback_error"))
 
     def on_startup_changed(self) -> None:
         requested = bool(self.startup_var.get())
         if set_startup_enabled(requested):
-            self.detail_var.set("已启用开机自动运行" if requested else "已关闭开机自动运行")
+            self.detail_var.set(tr("startup_enabled" if requested else "startup_disabled"))
             self.root.after(2200, self.refresh_detail)
             return
         self.startup_var.set(not requested)
         messagebox.showerror(
-            "无法修改开机启动",
-            "Windows 拒绝了当前用户的启动项修改。请检查注册表权限后重试。",
+            tr("startup_error_title"),
+            tr("startup_error_message"),
             parent=self.root,
         )
 
@@ -1171,7 +1592,7 @@ class CursorFenceApp:
         self.recording = True
         self.record_modifiers = 0
         self.record_modifier_names.clear()
-        self.record_button_var.set("按任意键…（Esc 取消）")
+        self.record_button_var.set(tr("record_prompt"))
         self.record_button.configure(state="normal")
         self.root.bind("<KeyPress>", self.capture_hotkey, add="+")
         self.root.focus_force()
@@ -1179,7 +1600,7 @@ class CursorFenceApp:
     def cancel_recording(self) -> None:
         self.recording = False
         self.root.unbind("<KeyPress>")
-        self.record_button_var.set("录制快捷键")
+        self.record_button_var.set(tr("record_button"))
 
     def capture_hotkey(self, event: tk.Event) -> str:
         keysym = str(event.keysym)
@@ -1230,7 +1651,7 @@ class CursorFenceApp:
             pass
         except Exception:
             write_error_log("全局快捷键事件处理异常", sys.exc_info())
-            self.detail_var.set("快捷键处理异常，详细信息已写入本地日志")
+            self.detail_var.set(tr("hotkey_error"))
         if not self.closing:
             self.hotkey_poll_after_id = self.root.after(20, self.poll_hotkey_events)
 
@@ -1279,16 +1700,16 @@ class CursorFenceApp:
         self.last_rect = None
         if self.mode_var.get() == "window":
             if not self.target_hwnd or not user32.IsWindow(self.target_hwnd) or user32.IsIconic(self.target_hwnd):
-                self.status_message = "没有可锁定的前台窗口"
+                self.status_message = tr("no_target")
                 self.detail_var.set(self.status_message)
                 return
         if self.apply_current_boundary(force=True):
             self.active = True
             if self.last_rect is not None:
                 self.boundary_guard.set_boundary(self.last_rect)
-            mode_text = "当前窗口" if self.mode_var.get() == "window" else "当前显示器"
-            self.status_var.set("已锁定")
-            self.detail_var.set(f"范围：{mode_text} · 再按 {self.hotkey_var.get()} 解除")
+            mode_text = tr("mode_window") if self.mode_var.get() == "window" else tr("mode_screen")
+            self.status_var.set(tr("status_active_label"))
+            self.detail_var.set(tr("detail_active", mode=mode_text, hotkey=self.hotkey_var.get()))
             self.status_dot.itemconfigure(self.status_dot_id, fill="#67e8a5")
             self.tray.refresh(True)
             self.notify_state(True, mode_text)
@@ -1304,8 +1725,8 @@ class CursorFenceApp:
         self.target_hwnd = None
         self.last_rect = None
         self.screen_boundary = None
-        self.status_var.set("未锁定")
-        self.detail_var.set("按下快捷键开始锁定")
+        self.status_var.set(tr("status_inactive_label"))
+        self.detail_var.set(tr("detail_ready"))
         self.status_dot.itemconfigure(self.status_dot_id, fill="#697386")
         self.tray.refresh(False)
         self.notify_state(False)
@@ -1354,7 +1775,7 @@ class CursorFenceApp:
         if boundary is None:
             if self.active:
                 self.deactivate_lock()
-                self.detail_var.set("目标窗口已关闭或最小化，已自动解除")
+                self.detail_var.set(tr("detail_auto_unlock"))
             return False
         left, top, right, bottom = boundary
         if right - left < 2 or bottom - top < 2:
@@ -1365,7 +1786,7 @@ class CursorFenceApp:
         if force or boundary != self.last_rect or get_cursor_clip() != boundary:
             native_rect = RECT(left, top, right, bottom)
             if not set_cursor_clip(native_rect):
-                self.status_message = "Windows 拒绝了鼠标边界设置"
+                self.status_message = tr("clip_failure")
                 self.detail_var.set(self.status_message)
                 write_error_log(f"ClipCursor 设置失败，目标边界={boundary}")
                 return False
@@ -1426,7 +1847,7 @@ def main() -> None:
         if not launched_at_startup:
             user32.MessageBoxW(
                 None,
-                "CursorFence 已在运行。请从通知区域图标打开设置。",
+                tr("duplicate_instance"),
                 APP_DISPLAY_NAME,
                 0x40,
             )
@@ -1443,7 +1864,7 @@ def main() -> None:
             previous_thread_hook(args)
 
         threading.excepthook = log_thread_exception
-        CursorFenceApp(root, startup_foreground)
+        CursorFenceApp(root, startup_foreground, launched_at_startup=launched_at_startup)
         root.mainloop()
     except BaseException:
         # A --windowed EXE normally has no console to show a traceback. Keep
@@ -1452,8 +1873,7 @@ def main() -> None:
         write_error_log("应用主线程异常", sys.exc_info())
         user32.MessageBoxW(
             None,
-            "CursorFence 遇到未处理错误，已解除鼠标锁定。\n\n"
-            f"错误日志：{LOG_DIRECTORY / 'error.log'}",
+            tr("fatal_error", path=LOG_DIRECTORY / "error.log"),
             APP_DISPLAY_NAME,
             0x10,
         )
