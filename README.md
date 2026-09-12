@@ -94,7 +94,7 @@ dist\CursorFence-Portable-windows-x64.zip
 dist\CursorFence-Installer.exe
 ```
 
-如果本机安装了 Inno Setup 6，脚本还会自动生成安装包；没有安装时仍会完成便携版构建。GitHub Actions 会自动准备 Inno Setup，推送版本标签（例如 `v0.2.2`）即可生成 Release 附件。
+如果本机安装了 Inno Setup 6，脚本还会自动生成安装包；没有安装时仍会完成便携版构建。GitHub Actions 会自动准备 Inno Setup，推送版本标签（例如 `v0.2.3`）即可生成 Release 附件。
 
 ## 为什么偏偏是 ScrollLock？
 

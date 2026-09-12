@@ -9,11 +9,11 @@ from PIL import Image, ImageDraw
 
 
 def draw_icon(size: int) -> Image.Image:
-    """Render the neon barrier-and-cursor mark used by CursorFence.
+    """Render a clear utility mark: cursor inside a visible boundary.
 
-    It intentionally leans into a compact cyber-anime look: a violet tile,
-    cyan/magenta energy ring, and a bright cursor cutting through the barrier.
-    The silhouette is kept simple so it still reads in a 16px tray slot.
+    The icon deliberately prioritizes state recognition over decoration.  A
+    muted blue frame means unlocked; the same frame turns bright green when
+    active, with a small status dot that remains visible in a 16px tray slot.
     """
     scale = size / 64
     image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
@@ -21,29 +21,32 @@ def draw_icon(size: int) -> Image.Image:
     box = lambda values: tuple(round(value * scale) for value in values)
     stroke = lambda value: max(1, round(value * scale))
 
-    # Dark violet tile with a soft magenta lower rim.
-    draw.rounded_rectangle(box((3, 3, 60, 60)), radius=round(15 * scale), fill="#130d2d", outline="#5d2b83", width=stroke(2))
-    draw.rounded_rectangle(box((7, 7, 56, 56)), radius=round(12 * scale), outline="#281c57", width=stroke(1))
+    # Neutral dark tile and a simple frame.  The frame is the status signal;
+    # keep its geometry unchanged so color is the only thing users need to
+    # learn.
+    draw.rounded_rectangle(box((3, 3, 60, 60)), radius=round(15 * scale), fill="#182236", outline="#2f405b", width=stroke(2))
+    draw.rounded_rectangle(box((7, 7, 56, 56)), radius=round(12 * scale), outline="#22314b", width=stroke(1))
 
-    # Segmented energy ring: cyan on the left, pink on the right.  The gaps
-    # make it feel like a game HUD / magical seal rather than a plain border.
-    draw.arc(box((10, 10, 54, 54)), 198, 338, fill="#64f6ff", width=stroke(3))
-    draw.arc(box((10, 10, 54, 54)), 18, 158, fill="#ff5ccf", width=stroke(3))
-    draw.arc(box((13, 13, 51, 51)), 205, 315, fill="#30bff4", width=stroke(1))
-    draw.arc(box((13, 13, 51, 51)), 25, 135, fill="#b45cff", width=stroke(1))
+    # Four open corner brackets read as a boundary without looking like a
+    # decorative frame.  The gaps leave the cursor visibly inside it.
+    boundary = "#93a4bd"
+    width = stroke(4)
+    draw.line((box((15, 24))[0], box((15, 24))[1], box((15, 15))[0], box((15, 15))[1], box((15, 15))[0], box((24, 15))[1]), fill=boundary, width=width, joint="curve")
+    draw.line((box((40, 15))[0], box((40, 15))[1], box((49, 15))[0], box((49, 15))[1], box((49, 15))[0], box((49, 24))[1]), fill=boundary, width=width, joint="curve")
+    draw.line((box((15, 40))[0], box((15, 40))[1], box((15, 49))[0], box((15, 49))[1], box((15, 49))[0], box((24, 49))[1]), fill=boundary, width=width, joint="curve")
+    draw.line((box((40, 49))[0], box((40, 49))[1], box((49, 49))[0], box((49, 49))[1], box((49, 49))[0], box((49, 40))[1]), fill=boundary, width=width, joint="curve")
 
-    # Four tiny sparkle nodes give the mark a more anime/cyber feel while
-    # remaining bold enough to survive icon downsampling.
-    for cx, cy, color in ((15, 17, "#a4fbff"), (49, 17, "#ffb2ed"), (14, 48, "#64f6ff"), (50, 47, "#ff5ccf")):
-        draw.polygon((box((cx, cy - 3)), box((cx + 2, cy)), box((cx, cy + 3)), box((cx - 2, cy))), fill=color)
-
-    # Central cursor pierces the energy seal.  A dark offset outline keeps it
-    # legible against both neon colors at small sizes.
-    cursor = [box((25, 14)), box((25, 45)), box((32, 37)), box((39, 50)), box((45, 47)), box((38, 34)), box((49, 34))]
+    # Central cursor has a dark keyline and a single cool accent, making the
+    # symbol readable on either the muted or active boundary color.
+    cursor = [box((25, 16)), box((25, 43)), box((31, 36)), box((37, 48)), box((43, 45)), box((37, 33)), box((47, 33))]
     shadow = [(x + round(2 * scale), y + round(2 * scale)) for x, y in cursor]
-    draw.polygon(shadow, fill="#090617")
-    draw.polygon(cursor, fill="#fff8ff", outline="#ff72d2")
-    draw.line((box((28, 20))[0], box((28, 20))[1], box((28, 36))[0], box((28, 36))[1]), fill="#d9b5ff", width=stroke(2))
+    draw.polygon(shadow, fill="#0a101d")
+    draw.polygon(cursor, fill="#f5f8fc", outline="#ffffff")
+    draw.line((box((28, 21))[0], box((28, 21))[1], box((28, 35))[0], box((28, 35))[1]), fill="#b8d3f2", width=stroke(2))
+
+    # Small neutral status mark in the top-right corner; the active generator
+    # below changes this to a bright green dot.
+    draw.ellipse(box((48, 8, 56, 16)), fill="#71839e", outline="#182236", width=stroke(1))
     return image
 
 

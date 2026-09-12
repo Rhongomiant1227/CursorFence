@@ -483,27 +483,25 @@ class TrayController:
             write_error_log("创建通知区域图标失败", sys.exc_info())
 
     def make_image(self, active: bool):
-        """Draw the neon barrier-and-cursor mark in the notification area."""
-        background = "#191033" if active else "#130d2d"
-        rim = "#b84f9b" if active else "#5d2b83"
-        inner = "#39205e" if active else "#281c57"
-        cyan = "#8cfff4" if active else "#64f6ff"
-        pink = "#ffb0e9" if active else "#ff5ccf"
+        """Draw the simple cursor-in-boundary utility mark."""
+        background = "#102b26" if active else "#182236"
+        rim = "#2ebd83" if active else "#2f405b"
+        inner = "#194436" if active else "#22314b"
+        boundary = "#5cf0a7" if active else "#93a4bd"
         image = self.Image.new("RGBA", (64, 64), (0, 0, 0, 0))
         draw = self.ImageDraw.Draw(image)
         draw.rounded_rectangle((3, 3, 60, 60), radius=15, fill=background, outline=rim, width=2)
         draw.rounded_rectangle((7, 7, 56, 56), radius=12, outline=inner, width=1)
-        draw.arc((10, 10, 54, 54), 198, 338, fill=cyan, width=3)
-        draw.arc((10, 10, 54, 54), 18, 158, fill=pink, width=3)
-        draw.arc((13, 13, 51, 51), 205, 315, fill="#58d9ff", width=1)
-        draw.arc((13, 13, 51, 51), 25, 135, fill="#ce7aff", width=1)
-        for cx, cy, color in ((15, 17, "#d5ffff"), (49, 17, "#ffd2f2"), (14, 48, cyan), (50, 47, pink)):
-            draw.polygon(((cx, cy - 3), (cx + 2, cy), (cx, cy + 3), (cx - 2, cy)), fill=color)
-        cursor = ((25, 14), (25, 45), (32, 37), (39, 50), (45, 47), (38, 34), (49, 34))
+        draw.line((15, 24, 15, 15, 24, 15), fill=boundary, width=4, joint="curve")
+        draw.line((40, 15, 49, 15, 49, 24), fill=boundary, width=4, joint="curve")
+        draw.line((15, 40, 15, 49, 24, 49), fill=boundary, width=4, joint="curve")
+        draw.line((40, 49, 49, 49, 49, 40), fill=boundary, width=4, joint="curve")
+        cursor = ((25, 16), (25, 43), (31, 36), (37, 48), (43, 45), (37, 33), (47, 33))
         shadow = tuple((x + 2, y + 2) for x, y in cursor)
         draw.polygon(shadow, fill="#090617")
-        draw.polygon(cursor, fill="#fff8ff", outline="#ff72d2")
-        draw.line((28, 20, 28, 36), fill="#e5c9ff", width=2)
+        draw.polygon(cursor, fill="#f5f8fc", outline="#ffffff")
+        draw.line((28, 21, 28, 35), fill="#b8d3f2", width=2)
+        draw.ellipse((48, 8, 56, 16), fill="#75ffaf" if active else "#71839e", outline=background, width=1)
         return image
 
     def make_menu(self):

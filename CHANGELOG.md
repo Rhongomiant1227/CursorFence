@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3
+
+- Simplified the icon to prioritize utility and lock-state recognition.
+- Replaced the decorative neon seal with a cursor, four-corner boundary, and status dot.
+- Unlocked uses a muted blue-gray frame; active uses a high-contrast green frame.
+
 ## 0.2.2
 
 - Reworked the brand mark into a neon cyber-anime barrier and cursor design.
