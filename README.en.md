@@ -19,8 +19,6 @@ The idea is not new. Projects such as cursorlock already show that people need i
 
 [中文版 README](README.md) · [Issues](https://github.com/Rhongomiant1227/CursorFence/issues) · [Releases](https://github.com/Rhongomiant1227/CursorFence/releases)
 
-Bilibili video production plan: [`docs/VIDEO_BILIBILI.md`](docs/VIDEO_BILIBILI.md)
-
 ## Up and running in 30 seconds
 
 1. Download `CursorFence-Portable-windows-x64.zip` or `CursorFence-Installer.exe` from [Releases](https://github.com/Rhongomiant1227/CursorFence/releases/latest).

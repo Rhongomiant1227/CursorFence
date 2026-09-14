@@ -19,8 +19,6 @@
 
 [English README](README.en.md) · [Issues](https://github.com/Rhongomiant1227/CursorFence/issues) · [Releases](https://github.com/Rhongomiant1227/CursorFence/releases)
 
-B 站视频制作方案：[`docs/VIDEO_BILIBILI.md`](docs/VIDEO_BILIBILI.md)
-
 ## 30 秒上手
 
 1. 从 [Releases](https://github.com/Rhongomiant1227/CursorFence/releases/latest) 下载 `CursorFence-Portable-windows-x64.zip` 或 `CursorFence-Installer.exe`。
